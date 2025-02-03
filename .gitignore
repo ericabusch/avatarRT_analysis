@@ -1,3 +1,9 @@
+*/log/
+*/*/log
+*/plots/
+*/results/
+validation_results.ipynb
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

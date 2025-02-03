@@ -71,8 +71,8 @@ def get_brain_control_from_success_file(df, session, run, trial=None):
 ######### data processing & statistics
 
 def permutation_test(data, n_iterations, alternative='greater'):
-    np.random.seed(0)
-    random.seed(0)
+    np.random.seed(SEED)
+    random.seed(SEED)
     """
     permutation test for comparing the means of two distributions 
     where the samples between the two distributions are paired
@@ -209,6 +209,11 @@ def get_trial_data(X, subject_id, session_id, run, shift_by=2):
     if VERBOSE: print(f"After getting trial data, found {len(trial_numbers)} trials, data shape: {len(data_by_trial)}, Xshape: {X.shape}")
     return data_by_trial
 
+def normalize_within_trial(X, trial_labels):
+    X_listed = list_by_trial(X, trial_labels, normalize=True)
+    # now concatenate
+    return np.concatenate(X_listed)
+
 def list_by_trial(X, trial_labels, normalize):
     X_list=[]
     for t in sorted(np.unique(trial_labels)):
@@ -219,7 +224,7 @@ def list_by_trial(X, trial_labels, normalize):
             X_trial = X[...,trial_idx]
         else: 
             X_trial=X[trial_idx]
-        if normalize: X_trial=normalize(X_trial)
+        if normalize: X_trial=zscore(X_trial, axis=0)
         X_list.append(X_trial)
     return X_list
 
@@ -311,6 +316,8 @@ def map_projection(projected_data, fitted_component):
     return loading
 
 def load_model_from_dir(modelPath, perturbation=0, verbose=False):
+    if '/' not in modelPath:
+        modelPath=f'{DATA_PATH}/{modelPath}/model/'
     modelFilename = f'{modelPath}/state_dict.pt'
     modelSpec = f'{modelPath}/modelSpec.txt'
     bottleneck = np.load(f'{modelPath}/bottleneck.npy')
@@ -347,11 +354,12 @@ def load_model_from_dir(modelPath, perturbation=0, verbose=False):
 
 
 def load_joystick_task_location_labels(subject_id, run, nTRs_data, shift_by=2):
-    reg_df = pd.read_csv(f'{DATA_PATH}/{subject_id}/ses_01/behav/run_{run:03d}_events_master_revised_v2.csv', index_col=0)
+    # reg_df = pd.read_csv(f'{DATA_PATH}/{subject_id}/ses_01/behav/run_{run:03d}_events_master_revised_v2.csv', index_col=0)
+    reg_df = pd.read_csv(f'{DATA_PATH}/{subject_id}/regressors/{subject_id}_ses_01_run_{run:02d}_timeseries_regressors.csv')
     trial_OnOff = reg_df['isTrial'].values
-    trial_numbers = reg_df['trial_number'].values
-    xvalues = reg_df['x_coord_norm'].values
-    zvalues = reg_df['z_coord_norm'].values
+    trial_numbers = reg_df['trial'].values
+    xvalues = reg_df['x'].values
+    zvalues = reg_df['z'].values
     trial_numbers_shifted, toTrim = shift_timing(nTRs_data, trial_numbers, shift_by, start_label=-1)
     xvalues_shifted,_ = shift_timing(nTRs_data, xvalues, shift_by, start_label=0)
     zvalues_shifted,_ = shift_timing(nTRs_data, zvalues, shift_by, start_label=0)
@@ -361,7 +369,7 @@ def load_all_joystick_data(subject_id, run, mask, shift_by=2):
     infn = f'{DATA_PATH}/{subject_id}/ses_01/func/{subject_id}_task-RT_run-{run:02d}_bold_preproc_v2_native.nii.gz'
     outfn= f'{SCRATCH_PATH}/joystick_analyses/{subject_id}_run_{run:02d}_bold_preproc_v2_native_navigation_mask.npy'
     if os.path.exists(outfn):
-        ds = np.load(outfn)
+        ds = normalize(np.load(outfn), axis=0)
         if VERBOSE: print(f"loading {outfn} of shape {ds.shape}")
     else:
         nii_data=nib.load(infn).get_fdata()
@@ -376,14 +384,14 @@ def load_all_joystick_data(subject_id, run, mask, shift_by=2):
 
 ######## functions pertaining to unity measures
 
-def load_location_labels(subject_id, session_id, run, nTRs_data, shift_by=2, version=2):
+def load_location_labels(subject_id, session_id, run, nTRs_data, shift_by=2):
     reg_df = pd.read_csv(f'{DATA_PATH}/{subject_id}/{REGRESSOR_VERSION}/{subject_id}_{session_id}_run_{run:02d}_timeseries_regressors.csv', index_col=0)
     xvalues = reg_df['x_coord_norm'].values
     zvalues = reg_df['z_coord_norm'].values
     trial_OnOff = reg_df['isTrial'].values
     trial_numbers = reg_df['trial'].values
     
-    trial_numbers_shifted, toTrim = shift_timing(nTRs_data, trial_numbers, shift_by, start_label=0)
+    trial_numbers_shifted, toTrim = shift_timing(nTRs_data, trial_numbers, shift_by, start_label=-1)
     xvalues_shifted,_ = shift_timing(nTRs_data, xvalues, shift_by, start_label=0)
     zvalues_shifted,_ = shift_timing(nTRs_data, zvalues, shift_by, start_label=0)
     
@@ -449,7 +457,3 @@ def get_end_location_unity(subject_id, session_id, run, trial):
     transf = transf[transf["Event"]=="Transform.Position"]
     x, z = transf.x.values[-1], transf.z.values[-1]
     return x,z
-
-
-
-

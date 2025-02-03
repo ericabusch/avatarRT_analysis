@@ -1,0 +1,348 @@
+---
+title: "Statistics for BCI manuscript"
+output: html_notebook
+---
+
+```{r}
+library(lme4) ##for linear mixed effects models
+library(lmerTest) ##to derive significance from lme4
+library(tidyverse) ##has lots of fun packages all in one!
+library(interactions)
+library(mediation)
+library(ppcor)
+library(report)
+library(emmeans)
+library(boot)
+library(lme4)
+library(ggplot2)
+library(dplyr)
+library(broom.mixed)
+```
+```{r}
+# {r setup, include=FALSE}
+
+MY_SEED <- 44
+set.seed(MY_SEED)
+
+knitr::opts_chunk$set(echo = TRUE)
+path <- "/Users/elb/Library/CloudStorage/OneDrive-YaleUniversity/JournalMaterials/BCI/data/evr_bc_final.csv"
+data <- read.csv(path)
+
+data$subject_id <- as.factor(data$subject_id) 
+data$session_number <- as.factor(data$session_number)
+data$behav_learn <- data$delta_BC * 100
+data$neural_learn <- data$delta_EVR * 100
+data <- filter(data, subject_id != "avatarRT_sub_20")
+data <- filter(data, subject_id != "avatarRT_sub_09")
+
+IM_data <- filter(data, session_type=="IM")
+WM_data <- filter(data, session_type=="WMP")
+OM_data <- filter(data, session_type=="OMP")
+
+
+
+# data_incong <-read.csv("./Users/elb/Library/CloudStorage/OneDrive-YaleUniversity/JournalMaterials/BCI/data/runwise_component_EVR_neural_analysis_run_change.csv")
+# data_incong$session_type <- as.factor(data_incong$session_type)
+# data_incong$comparison_component_name <- as.factor(data_incong$comparison_component_name)
+# data_incong$subject_id <- as.factor(data_incong$subject_id)
+# data_incong$delta_evr <- data_incong$delta_run_perturb*100
+# data_incong <- filter(data_incong, subject_id != "avatarRT_sub_20")
+# data_incong <- filter(data_incong, subject_id != "avatarRT_sub_09")
+
+```
+# Bootstrapping function
+```{r}
+# Define the bootstrap function for testing if a statistic is different from 0
+bootstrap_statistic_test <- function(data, variable, statistic_function, H0=0, R = 1000, perc=0.95, tail = "two-tailed", my_seed=44) {
+  # Extract the variable from the data frame
+  var_data <- data[[variable]]
+  
+  # Define a function to compute the statistic
+  stat_function <- function(data, indices) {
+    resampled_data <- data[indices]
+    return(statistic_function(resampled_data))
+  }
+  set.seed(my_seed)
+  # Perform bootstrapping
+  boot_object <- boot(data = var_data, statistic = stat_function, R = R, parallel="no")
+  
+  # Calculate observed statistic
+  observed_stat <- statistic_function(var_data)
+  if (H0 == 0) {
+    observed_stat = 0
+  }
+  
+  # Calculate the p-value based on the tail type
+  if (tail == "two-tailed") {
+    p_value <- min(mean(observed_stat < boot_object$t), mean(observed_stat > boot_object$t))*2
+  } else if (tail == "greater") {
+    p_value <- mean(observed_stat > boot_object$t)
+  } else if (tail == "less") {
+    p_value <- mean(observed_stat < boot_object$t)
+  } else {
+    stop("Invalid tail argument. Use 'two-tailed', 'greater', or 'less'.")
+  }
+  
+  ci = boot.ci(boot_object, perc, "bca")
+  
+  # Return the boot object and p-value
+  list(boot_object = boot_object, p_value = p_value , ci = ci)
+}
+
+
+mean_stat_function <- function(x) mean(x)
+median_stat_function <- function(x) median(x)
+```
+# Mean & CI of behav learning
+```{r}
+# Bootstrapping mean and ci of behavioral learning per condition (h1 = learning > 0 )
+df <-  data.frame(behav_learn=IM_data$behav_learn, "behav_learn")
+result_mean <- bootstrap_statistic_test(df, "behav_learn", mean_stat_function,H0=0, R = 10000, tail = "greater")
+print("Mean statistics IM Behavior:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+#plot(result_mean$boot_object)
+print("=================================================")
+
+df <-  data.frame(behav_learn=WM_data$behav_learn, "behav_learn")
+result_mean <- bootstrap_statistic_test(df, "behav_learn", mean_stat_function,H0=0, R = 10000, tail = "two-tailed")
+print("Mean statistics WM Behavior:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+# plot(result_mean$boot_object)
+print("=================================================")
+
+df <-  data.frame(behav_learn=OM_data$behav_learn, "behav_learn")
+result_mean <- bootstrap_statistic_test(df, "behav_learn", mean_stat_function, H0=0, R = 10000, tail = "greater")
+print("Mean statistics OM Behavior:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+# plot(result_mean$boot_object)
+print("=================================================")
+```
+# difference between conditions, behavioral learning
+```{r}
+df <-  data.frame(diff_IM_WM=IM_data$behav_learn - WM_data$behav_learn, "diff_IM_WM")
+result_mean <- bootstrap_statistic_test(df, "diff_IM_WM", mean_stat_function, H0=0, R = 10000, tail = "two-tailed")
+print("Mean statistics diff_IM_WM behav:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value))
+print(result_mean$ci)
+print("==========================================================")
+
+df <-  data.frame(diff_IM_OM=IM_data$behav_learn - OM_data$behav_learn, "diff_IM_OM")
+result_mean <- bootstrap_statistic_test(df, "diff_IM_OM", mean_stat_function, H0=0, R = 10000, tail = "greater")
+print("Mean statistics diff_IM_OM behav:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value))
+print(result_mean$ci)
+print("==========================================================")
+
+df <-  data.frame(diff_WM_OM=WM_data$behav_learn - OM_data$behav_learn, "diff_WM_OM")
+result_mean <- bootstrap_statistic_test(df, "diff_WM_OM", mean_stat_function, H0=0, R = 10000, tail = "greater")
+print("Mean statistics diff_WM_OM behav:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value))
+print(result_mean$ci)
+print("==========================================================")
+```
+# Mean and CI of neural learning
+```{r}
+# Bootstrapping mean and ci of neural learning per condition (h1 = learning > 0 )
+df <-  data.frame(neural_learn=IM_data$neural_learn, "neural_learn")
+result_mean <- bootstrap_statistic_test(df, "neural_learn", mean_stat_function,H0=0, R = 10000, tail = "greater")
+print("Mean statistics IM neural:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+#plot(result_mean$boot_object)
+print("=================================================")
+
+df <-  data.frame(neural_learn=WM_data$neural_learn, "neural_learn")
+result_mean <- bootstrap_statistic_test(df, "neural_learn", mean_stat_function,H0=0, R = 10000, tail = "greater")
+print("Mean statistics WM neural:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+# plot(result_mean$boot_object)
+print("=================================================")
+
+df <-  data.frame(neural_learn=OM_data$neural_learn, "neural_learn")
+result_mean <- bootstrap_statistic_test(df, "neural_learn", mean_stat_function, H0=0, R = 10000, tail = "greater")
+print("Mean statistics OM neural:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+# plot(result_mean$boot_object)
+print("=================================================")
+```
+# Difference between conditions neural learning
+```{r}
+df <-  data.frame(diff_IM_WM=IM_data$neural_learn - WM_data$neural_learn, "diff_IM_WM")
+result_mean <- bootstrap_statistic_test(df, "diff_IM_WM", mean_stat_function, H0=0, R = 10000, tail = "two-tailed")
+print("Mean statistics diff_IM_WM neural:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value))
+print(result_mean$ci)
+print("==========================================================")
+
+df <-  data.frame(diff_IM_OM=IM_data$neural_learn - OM_data$neural_learn, "diff_IM_OM")
+result_mean <- bootstrap_statistic_test(df, "diff_IM_OM", mean_stat_function, H0=0, R = 10000, tail = "greater")
+print("Mean statistics diff_IM_OM neural:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value))
+print(result_mean$ci)
+print("==========================================================")
+
+df <-  data.frame(diff_WM_OM=WM_data$neural_learn - OM_data$neural_learn, "diff_WM_OM")
+result_mean <- bootstrap_statistic_test(df, "diff_WM_OM", mean_stat_function, H0=0, R = 10000, tail = "greater")
+print("Mean statistics diff_WM_OM neural:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value))
+print(result_mean$ci)
+print("==========================================================")
+```
+# Individual differences analysis
+```{r}
+# Ensure 'session_type' is treated as a factor and set the reference level
+data$session_type <- relevel(as.factor(data$session_type), ref = "IM")
+
+# Define the model again
+model <- lmer(behav_learn ~ neural_learn * session_type + (1 | subject_id)  + (1|session_number), data = data)
+
+# Get the summary of the model
+summary(model)
+report(model)
+# Display the summary
+```
+# Inconguent condition neural learning
+```{r}
+im_ses_incong <- filter(data_incong, session_type=="IM")
+wmp_ses_incong <- filter(data_incong, session_type=="WMP")
+omp_ses_incong <- filter(data_incong, session_type=="OMP")
+
+# H1 : WMP > 0 in IM session
+result_mean <- bootstrap_statistic_test(filter(im_ses_incong, comparison_component_name=="WMP"), "delta_evr", mean_stat_function, H0=0, R = 10000, tail = "two-tailed")
+print("DELTA WMP IN IM SESSION")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+# H1 : OMP > 0 in IM session
+result_mean <- bootstrap_statistic_test(filter(im_ses_incong, comparison_component_name=="OMP"), "delta_evr", mean_stat_function, H0=0, R = 10000, tail = "two-tailed")
+print("DELTA OMP IN IM SESSION")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+
+# H1 : IM > 0 in WMP session
+result_mean <- bootstrap_statistic_test(filter(wmp_ses_incong, comparison_component_name=="IM"), "delta_evr", mean_stat_function, H0=0, R = 10000, tail = "two-tailed")
+print("DELTA IM DURING WMP SESSION")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+# H1 : OMP > 0 in WMP session
+result_mean <- bootstrap_statistic_test(filter(wmp_ses_incong, comparison_component_name=="OMP"), "delta_evr", mean_stat_function, H0=0, R = 10000, tail = "two-tailed")
+print("DELTA OMP DURING WMP SESSION:")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+
+# H1 : WMP > 0 in OMP session
+result_mean <- bootstrap_statistic_test(filter(omp_ses_incong, comparison_component_name=="WMP"), "delta_evr", mean_stat_function, H0=0, R = 10000, tail = "two-tailed")
+print("DELTA WMP IN OMP SESSION")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+# H1 : IM > 0 in OMP session
+result_mean <- bootstrap_statistic_test(filter(omp_ses_incong, comparison_component_name=="IM"), "delta_evr", mean_stat_function, H0=0, R = 10000, tail = "two-tailed")
+print("DELTA IM IN OMP SESSION")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+
+# H1 : IM > 0 in OMP session
+result_mean <- bootstrap_statistic_test(filter(omp_ses_incong, comparison_component_name=="OMP"), "delta_evr", mean_stat_function, H0=0, R = 10000, tail = "two-tailed")
+print("DELTA OMP IN OMP SESSION")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+
+```
+# Incongruent differences between compared components
+```{r}
+# H1 : WMP > 0 in IM session
+WMP_during_IM <- filter(im_ses_incong, comparison_component_name=="WMP")$delta_evr
+IM_during_IM <- filter(im_ses_incong, comparison_component_name=="IM")$delta_evr
+OMP_during_IM <- filter(im_ses_incong, comparison_component_name=="OMP")$delta_evr
+
+diff_df <- data.frame(diff_IM_WMP = IM_during_IM - WMP_during_IM )
+diff_df$diff_IM_WMP <- IM_during_IM - WMP_during_IM 
+diff_df$diff_IM_OMP <- IM_during_IM - OMP_during_IM
+
+WMP_during_WMP <- filter(wmp_ses_incong, comparison_component_name=="WMP")$delta_evr
+IM_during_WMP <- filter(wmp_ses_incong, comparison_component_name=="IM")$delta_evr
+OMP_during_WMP <- filter(wmp_ses_incong, comparison_component_name=="OMP")$delta_evr
+
+diff_df$diff_WMP_IM <- WMP_during_WMP - IM_during_WMP
+diff_df$diff_WMP_OMP <- WMP_during_WMP - OMP_during_WMP
+
+WMP_during_OMP <- filter(omp_ses_incong, comparison_component_name=="WMP")$delta_evr
+IM_during_OMP <- filter(omp_ses_incong, comparison_component_name=="IM")$delta_evr
+OMP_during_OMP <- filter(omp_ses_incong, comparison_component_name=="OMP")$delta_evr
+
+diff_df$diff_OMP_IM <- OMP_during_OMP - IM_during_OMP
+diff_df$diff_OMP_WMP <- OMP_during_OMP - WMP_during_OMP
+
+result_mean <- bootstrap_statistic_test(diff_df, "diff_IM_WMP", mean_stat_function, H0=0, R = 10000, tail = "greater")
+print("diff_IM_WMP")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+
+result_mean <- bootstrap_statistic_test(diff_df, "diff_IM_OMP", mean_stat_function, H0=0, R = 10000, tail = "greater")
+print("diff_IM_OMP")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+
+result_mean <- bootstrap_statistic_test(diff_df, "diff_WMP_IM", mean_stat_function, H0=0, R = 10000, tail = "greater")
+print("diff_WMP_IM")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+
+result_mean <- bootstrap_statistic_test(diff_df, "diff_WMP_OMP", mean_stat_function, H0=0, R = 10000, tail = "greater")
+print("diff_WMP_OMP")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+
+result_mean <- bootstrap_statistic_test(diff_df, "diff_OMP_IM", mean_stat_function, H0=0, R = 10000, tail = "greater")
+print("diff_OMP_IM")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+
+result_mean <- bootstrap_statistic_test(diff_df, "diff_OMP_WMP", mean_stat_function, H0=0, R = 10000, tail = "greater")
+print("diff_OMP_WMP")
+print(result_mean$boot_object)
+print(paste("P-value: ", result_mean$p_value)) 
+print(result_mean$ci)
+print("=================================================")
+```
+

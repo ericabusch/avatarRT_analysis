@@ -13,7 +13,7 @@ SUB_NUMBERS = SUB_NUMBERS[SUB_NUMBERS!=12] # 12 dropped out
 SUB_IDS = [f'avatarRT_sub_{s:02d}' for s in SUB_NUMBERS]
 WM_first = [5,7,9,11,13,15,17,19,21,23,24]
 WM_FIRST = [f'avatarRT_sub_{s:02d}' for s in WM_first] # subjects who received WMP before OMP
-exclude_from_neural_analyses = [12,9,20]
+exclude_from_neural_analyses = [12,9,20] # 12 dropped, 9 had scanner issue, 20 fell asleep
 
 
 CODES=['AA','BB','CC','DD','EE','GG','HH','JJ','KK','MM','NN','PP','QQ','SS','TT','VV','WW','XX','YY','ZZ']
@@ -28,13 +28,14 @@ SHIFTBY=2
 SEED=44
 REGRESSOR_VERSION='regressors_1024'
 CALIB_TR=10
-NPERM=10000
+NPERM=1000
 ALPHAS = 10.**np.arange(-2, 20, 1)
 VERBOSE=1
 
 BEHAV_TRIALSERIES = f'{FINAL_RESULTS_PATH}/behavioral_change_trialseries.csv'
 BEHAV_SESSION_RES = f'{FINAL_RESULTS_PATH}/behavioral_change_session.csv'
-
+BEHAV_TRIAL_W_SIM = f'{FINAL_RESULTS_PATH}/behavioral_change_trialseries_with_simulations.csv'
+BEHAV_SESSION_W_SIM = f'{FINAL_RESULTS_PATH}/behavioral_change_runwise_with_simulations.csv'
 
 
 colors_main = {'OMP': '#5C940D', 'WMP': '#2E8A82', 'IM': '#00356b'}
@@ -64,19 +65,6 @@ def does_file_exist(filename):
 	b = os.path.isfile(filename)
 	if not b: print(f'{filename} DNE')
 	return b
-
-# runwise exclusions for original data processing
-# all of these runs were replaced 
-# EXCLUDE_RUNS = {SUB:{'ses_01':[],'ses_02':[],'ses_03':[],'ses_04':[],'ses_05':[]} for SUB in SUB_IDS}
-# EXCLUDE_RUNS['avatarRT_sub_16']['ses_01']+=[2]
-# EXCLUDE_RUNS['avatarRT_sub_16']['ses_02']+=[4]
-# EXCLUDE_RUNS['avatarRT_sub_16']['ses_03']+=[3]
-# EXCLUDE_RUNS['avatarRT_sub_18']['ses_02']+=[1]
-# EXCLUDE_RUNS['avatarRT_sub_21']['ses_03']+=[1,2]
-# EXCLUDE_RUNS['avatarRT_sub_22']['ses_02']+=[1]
-# EXCLUDE_RUNS['avatarRT_sub_23']['ses_02']+=[2]
-# EXCLUDE_RUNS['avatarRT_sub_24']['ses_03']+=[1]
-# EXCLUDE_RUNS['avatarRT_sub_25']['ses_02']+=[2]
 
 
 

@@ -1,1 +1,5 @@
-# avatarRT_BCI
+# avatarRT_analysis
+
+This repository contains the analysis scripts for our real-time fMRI experiment. `behavioral_learning.py` has the results for the BCI learning effects indexed by behavior (i.e., $\delta Brain Control$). `neural_EVR_alanysis.py` contains the estimated changes in neural alignment with manifold components as a result of BCI learning. `joystick_decoding` and `searchlight_location_prediction_himalaya.py` contain decoding of the avatar's location in space, both during the joystick task and across neurofeedback runs. `run_randomise.sh` shows how we ran statistical tests over the searchlight results. 
+
+Plots were generated within the jupyter notebooks, though statistics were run within the `BCI_statistics_final.Rmd` script and visualized over the plots with those results from bootstrapping. Linear mixed effects models were also run in `BCI_statistics_final.Rmd`. All python scripts were run within the environment listed in `environment.yml`. 

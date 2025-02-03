@@ -25,6 +25,7 @@ def determine_symbol(pval):
 def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.06], outfn=None, title='',plus_bot=0.04, plus_top=0.07, n_iter=1000, sample_alternative='greater',pairwise_alternative='greater'):
     ## already filter the dataframe to give it just the data necessary - the version you are running or whatever
     # so only have to select the yname
+    np.random.seed(10)
     if (len(exclude_subs)==1) and (exclude_subs[0]=='simulation'): 
         include = SIMULATED_SUBS
         cmap=colors_sim
@@ -50,9 +51,16 @@ def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.
     _,p3=ttest_1samp(v_om, popmean=0, alternative=sample_alternative)
     print(f'IM {np.round(p1,4)}, WM {np.round(p2,4)}, OM {np.round(p3,4)}')
 
-    _,p4,_=helper.permutation_test(np.array([v_im,v_wm]), n_iter, alternative=pairwise_alternative)
-    _,p5,_=helper.permutation_test(np.array([v_im,v_om]), n_iter, alternative=pairwise_alternative)
-    _,p6,_=helper.permutation_test(np.array([v_wm,v_om]), n_iter, alternative=pairwise_alternative)
+    if type(pairwise_alternative) == str:
+        print(pairwise_alternative)
+        h1a,h1b,h1c=pairwise_alternative,pairwise_alternative,pairwise_alternative
+    else:
+        assert type(pairwise_alternative) == list and len(pairwise_alternative) == 3
+        h1a,h1b,h1c=pairwise_alternative[0],pairwise_alternative[1],pairwise_alternative[2]
+
+    _,p4,_=helper.permutation_test(np.array([v_im,v_wm]), n_iter, alternative=h1a)
+    _,p5,_=helper.permutation_test(np.array([v_im,v_om]), n_iter, alternative=h1b)
+    _,p6,_=helper.permutation_test(np.array([v_wm,v_om]), n_iter, alternative=h1c)
     print(f'IMvWM: {np.round(p4,4)}, IMvOM: {np.round(p5,4)}, WMvOM: {np.round(p6,4)}')
     
     pstrs = [determine_symbol(p) for p in [p1,p2,p3,p4,p5,p6]]

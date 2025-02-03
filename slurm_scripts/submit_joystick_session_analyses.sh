@@ -12,4 +12,4 @@ module load miniconda
 conda activate rtcloud_av1
 
 cd /gpfs/milgram/project/turk-browne/users/elb77/BCI/rt-cloud/projects/avatarRT/offline_analyses/final_analysis_scripts/
-python -u joystick_session_analysis.py
+python -u joystick_decoding.py
