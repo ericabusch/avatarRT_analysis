@@ -54,7 +54,7 @@ def get_perturbation_info(subject_id, session_id, run, return_component=False):
     return perturb_type, comp
 
 def load_info_file():
-	return pd.read_csv(f'{PROJECT_PATH}/offline_analyses/info/session_tracker_amended.csv')
+	return pd.read_csv(f'{SESSION_TRACKER}')
 
 def get_success_rate_file(subject_id):
 	df = pd.read_csv(f'{DATA_PATH}/{subject_id}/results/success_rates.csv')
@@ -68,11 +68,13 @@ def get_brain_control_from_success_file(df, session, run, trial=None):
     rows = df[(df['session_number']==session) & (df['run_number']==run)]['brain_control'].values
     return np.nanmean(rows)
 
-######### data processing & statistics
+######### ######### ######### data processing & statistics ######### ######### #########  
 
 def permutation_test(data, n_iterations, alternative='greater'):
+    
     np.random.seed(SEED)
     random.seed(SEED)
+    
     """
     permutation test for comparing the means of two distributions 
     where the samples between the two distributions are paired
@@ -99,16 +101,12 @@ def permutation_test(data, n_iterations, alternative='greater'):
     n_samples = data.shape[1]
     observed_difference = data[0] - data[1]
     observed = np.mean(observed_difference)
-    
-    
     null_distribution = np.empty(n_iterations)
     for i in range(n_iterations):
         weights = [choice([-1, 1]) for d in range(n_samples)]
         null_distribution[i] = (weights*observed_difference).mean()
-        
     eps = 1e-14
     gamma = np.maximum(eps, np.abs(eps * observed))
-    
     pvalue = compare[alternative](null_distribution, observed)
     return observed, pvalue, null_distribution
 
@@ -121,6 +119,9 @@ def run_EVR(X_transformed):
     X_var = np.var(X_transformed, axis=0)
     evr = X_var / np.sum(X_var)
     return np.array(evr)
+
+def compute_total_variance(X_transformed):
+    return np.var(X_transformed, axis=0)
 
 def embed_tphate(X, t=5, n_components=2):
     embd = tphate.TPHATE(t=t, n_components=n_components, verbose=0).fit_transform(X)
@@ -224,7 +225,8 @@ def list_by_trial(X, trial_labels, normalize):
             X_trial = X[...,trial_idx]
         else: 
             X_trial=X[trial_idx]
-        if normalize: X_trial=zscore(X_trial, axis=0)
+        if normalize: 
+            X_trial=zscore(X_trial, axis=0)
         X_list.append(X_trial)
     return X_list
 
@@ -241,7 +243,7 @@ def get_realtime_outdata(subject_id, session_id, run_number, data_type=None):
         return np.load(f"{DATA_PATH}/{subject_id}/{session_id}/data/{subject_id}_run_{run_number:02d}_{data_type}.npy")
     # returns a dictionary of all types
     to_return = {}
-    for data_type in ['masked_data','masked_raw_data','preproc_times','projected_data','analysis_times','decoded_angles','embedded_timeseries']:
+    for data_type in ['masked_data', 'masked_raw_data', 'preproc_times', 'projected_data', 'analysis_times', 'decoded_angles', 'embedded_timeseries']:
         to_return[data_type] =  np.load(f"{DATA_PATH}/{subject_id}/{session_id}/data/{subject_id}_run_{run_number:02d}_{data_type}.npy")
     return to_return
 
@@ -277,7 +279,7 @@ def load_component_data(subject_id, session_id, run, component_number=None, by_t
     # get projection onto NFB components
     X = calculate_nfb_component_loadings(subject_id, session_id, run, component_number=component_number)
     if by_trial: 
-        X = get_trial_data(X, sub_ID, ses_ID, run, shift_by)
+        X = get_trial_data(X, subject_id, session_id, run, shift_by)
     else:
         X=X[CALIB_TR+shift_by:]
     return X
@@ -354,7 +356,6 @@ def load_model_from_dir(modelPath, perturbation=0, verbose=False):
 
 
 def load_joystick_task_location_labels(subject_id, run, nTRs_data, shift_by=2):
-    # reg_df = pd.read_csv(f'{DATA_PATH}/{subject_id}/ses_01/behav/run_{run:03d}_events_master_revised_v2.csv', index_col=0)
     reg_df = pd.read_csv(f'{DATA_PATH}/{subject_id}/regressors/{subject_id}_ses_01_run_{run:02d}_timeseries_regressors.csv')
     trial_OnOff = reg_df['isTrial'].values
     trial_numbers = reg_df['trial'].values
@@ -363,20 +364,28 @@ def load_joystick_task_location_labels(subject_id, run, nTRs_data, shift_by=2):
     trial_numbers_shifted, toTrim = shift_timing(nTRs_data, trial_numbers, shift_by, start_label=-1)
     xvalues_shifted,_ = shift_timing(nTRs_data, xvalues, shift_by, start_label=0)
     zvalues_shifted,_ = shift_timing(nTRs_data, zvalues, shift_by, start_label=0)
-    return trial_numbers_shifted, xvalues_shifted, zvalues_shifted,toTrim
+    return trial_numbers_shifted, xvalues_shifted, zvalues_shifted, toTrim
 
 def load_all_joystick_data(subject_id, run, mask, shift_by=2):
-    infn = f'{DATA_PATH}/{subject_id}/ses_01/func/{subject_id}_task-RT_run-{run:02d}_bold_preproc_v2_native.nii.gz'
-    outfn= f'{SCRATCH_PATH}/joystick_analyses/{subject_id}_run_{run:02d}_bold_preproc_v2_native_navigation_mask.npy'
+    infn= f'{DATA_PATH}/{subject_id}/ses_01/func/{subject_id}_task-joystick_run-{run:02d}_bold_preproc.nii.gz'
+    outfn=f'{SCRATCH_PATH}/joystick_analyses/{subject_id}_run_{run:02d}_bold_preproc_original_native_navigation_mask.npy'
+    ds=[]
+    if not os.path.exists(infn):
+        try:
+            ds=np.load(f'{DATA_PATH}/{subject_id}/ses_01/func/{subject_id}_task-joystick_run-{run:02d}_bold_preproc_navigation_mask.npy')
+        except:
+            print(f'{infn} does not exist, nor *navigation_mask.npy')
+            infn=f'{DATA_PATH}/{subject_id}/ses_01/func/{subject_id}_task-RT_run-{run:02d}_bold_preproc_v2_native.nii.gz'
+            print(f'instead using {infn}')
     if os.path.exists(outfn):
         ds = normalize(np.load(outfn), axis=0)
         if VERBOSE: print(f"loading {outfn} of shape {ds.shape}")
-    else:
+    elif len(ds)==0: 
         nii_data=nib.load(infn).get_fdata()
         ds = nii_data[mask==1].T
-        ds = normalize(ds, axis=0)
-        np.save(outfn, ds)
-        if VERBOSE: print(f"saved {outfn} of shape {ds.shape}")
+    ds = normalize(ds, axis=0)
+    np.save(outfn, ds)
+    if VERBOSE: print(f"saved {outfn} of shape {ds.shape}")
     trials_shifted, xshifted, zshifted,toTrim = load_joystick_task_location_labels(subject_id, run, ds.shape[0], shift_by)
     if VERBOSE: print(f"data,trials,xshifted,zshifted of shape {ds.shape},{trials_shifted.shape},{xshifted.shape},toTrim={toTrim}")
     if toTrim != 0: ds = ds[:-1*toTrim] 
@@ -386,14 +395,18 @@ def load_all_joystick_data(subject_id, run, mask, shift_by=2):
 
 def load_location_labels(subject_id, session_id, run, nTRs_data, shift_by=2):
     reg_df = pd.read_csv(f'{DATA_PATH}/{subject_id}/{REGRESSOR_VERSION}/{subject_id}_{session_id}_run_{run:02d}_timeseries_regressors.csv', index_col=0)
-    xvalues = reg_df['x_coord_norm'].values
-    zvalues = reg_df['z_coord_norm'].values
+    xvalues = reg_df['x_coord'].values
+    zvalues = reg_df['z_coord'].values
     trial_OnOff = reg_df['isTrial'].values
     trial_numbers = reg_df['trial'].values
     
     trial_numbers_shifted, toTrim = shift_timing(nTRs_data, trial_numbers, shift_by, start_label=-1)
     xvalues_shifted,_ = shift_timing(nTRs_data, xvalues, shift_by, start_label=0)
     zvalues_shifted,_ = shift_timing(nTRs_data, zvalues, shift_by, start_label=0)
+    
+    while len(trial_numbers_shifted) < nTRs_data:
+        trial_numbers_shifted = np.append(trial_numbers_shifted,[-1])
+
     
     return trial_numbers_shifted, xvalues_shifted, zvalues_shifted
 

@@ -22,7 +22,7 @@ def determine_symbol(pval):
         return symbols['0.1']
     return 'n.s.'
 
-def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.06], outfn=None, title='',plus_bot=0.04, plus_top=0.07, n_iter=1000, sample_alternative='greater',pairwise_alternative='greater'):
+def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.06], outfn=None, title='',plus_bot=0.04, plus_top=0.07, n_iter=1000, lines=True, sample_alternative='greater',pairwise_alternative='greater',ylabel=None,xlabel=None):
     ## already filter the dataframe to give it just the data necessary - the version you are running or whatever
     # so only have to select the yname
     np.random.seed(10)
@@ -34,16 +34,16 @@ def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.
         include = [i for i in include if i not in exclude_subs]
         include = [helper.format_subid(i) for i in include]
         cmap=colors_main
-    print(include)
     
+    if not ylabel: ylabel=yname
+    if not xlabel: xlabel=xname
+        
     # print(include)
     order=['IM','WMP','OMP']
     d = dataframe[(dataframe['subject_id'].isin(include))]
     v_im = d[d[xname]=='IM'][yname].values
     v_wm = d[d[xname]=='WMP'][yname].values
     v_om = d[d[xname]=='OMP'][yname].values
-    # print(v_im.shape,v_wm.shape,v_om.shape)
-    # print(d[d[xname]=='OMP'].subject_id.unique())
         
     # run stats
     _,p1=ttest_1samp(v_im, popmean=0, alternative=sample_alternative)
@@ -76,8 +76,6 @@ def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.
     for b,subj in enumerate(include):
         try:
             point0 = d[(d['subject_id']==subj) & (d[xname]=='IM')][yname].item()
-
-            # print(point0)
             point1 = d[(d['subject_id']==subj) & (d[xname]=='WMP')][yname].item()
             point2 = d[(d['subject_id']==subj) & (d[xname]=='OMP')][yname].item()
         except:
@@ -87,8 +85,7 @@ def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.
         points0.append(point0)
         points1.append(point1)
         points2.append(point2)
-
-        ax.plot(xlocs, [point0, point1, point2], color='k',alpha=0.36, linewidth=0.4)
+        if lines: ax.plot(xlocs, [point0, point1, point2], color='k',alpha=0.36, linewidth=0.4)
     
     # draw signif over bar
     xloc_mids = [-0.12, 0.9, 1.9]
@@ -97,20 +94,20 @@ def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.
         if pstrs[i] != None:
             plt.text(x=xloc_mids[i], y=yloc_bar, s=pstrs[i], size=12)
     
-    # draw signif btwn bar
-    xrel_mids = [0.4,1,1.4]
-    line_xranges = [[0.2,0.45], [0.2,0.8], [0.55,0.8]]
-    line_y = [yloc_bar+plus_bot, yloc_bar+plus_top, yloc_bar+plus_bot]
-    
-    for i in range(3):
-        if pstrs[i+3]!=None:
-            plt.axhline(y=line_y[i], xmin=line_xranges[i][0], xmax=line_xranges[i][1], color='k', lw=1)
-            plt.text(x=xrel_mids[i], y=line_y[i], s=pstrs[i+3], size=12) 
+    if pairwise_alternative != 'skip':
+        # draw signif btwn bar
+        xrel_mids = [0.4,1,1.4]
+        line_xranges = [[0.2,0.45], [0.2,0.8], [0.55,0.8]]
+        line_y = [yloc_bar+plus_bot, yloc_bar+plus_top, yloc_bar+plus_bot]
+
+        for i in range(3):
+            if pstrs[i+3]!=None:
+                plt.axhline(y=line_y[i], xmin=line_xranges[i][0], xmax=line_xranges[i][1], color='k', lw=1)
+                plt.text(x=xrel_mids[i], y=line_y[i], s=pstrs[i+3], size=12) 
     
 
-    ax.set_ylabel(yname)
-    ax.set_xticklabels(['IM','WM','OM'])
-    ax.set(ylim=ylim,title=title,xlabel=xname,ylabel='')
+    ax.set_xticklabels(['IM','WMP','OMP'])
+    ax.set(ylim=ylim,title=title,xlabel=xlabel,ylabel=ylabel)
     sns.despine()
     if outfn != None: 
         plt.savefig(outfn, transparent=True,bbox_inches = "tight")
@@ -118,7 +115,7 @@ def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.
     else:
         return fig,ax
 
-def make_barplot_errorbar(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.06], outfn=None, title='',plus_bot=0.04, plus_top=0.07, n_iter=1000, sample_alternative='greater',pairwise_alternative='greater'):
+def make_barplot_errorbar(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.06], outfn=None, title='',plus_bot=0.04, plus_top=0.07, n_iter=1000, signif=False, sample_alternative='greater',pairwise_alternative='greater'):
     ## already filter the dataframe to give it just the data necessary - the version you are running or whatever
     # so only have to select the yname
     if (len(exclude_subs)==1) and (exclude_subs[0]=='simulation'): 
@@ -162,22 +159,23 @@ def make_barplot_errorbar(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,
                 errwidth=3, alpha=0.85,ax=ax )
     ax.axhline(0, ls='--', c='k') 
     
-    # draw signif over bar
-    xloc_mids = [-0.12, 0.9, 1.9]
-    yloc_bar = np.max(np.concatenate([points0,points1,points2]))+0.004
-    for i in range(3):
-        if pstrs[i] != None:
-            plt.text(x=xloc_mids[i], y=yloc_bar, s=pstrs[i], size=12)
-    
-    # draw signif btwn bar
-    xrel_mids = [0.4,1,1.4]
-    line_xranges = [[0.2,0.45], [0.2,0.8], [0.55,0.8]]
-    line_y = [yloc_bar+plus_bot, yloc_bar+plus_top, yloc_bar+plus_bot]
-    
-    for i in range(3):
-        if pstrs[i+3]!=None:
-            plt.axhline(y=line_y[i], xmin=line_xranges[i][0], xmax=line_xranges[i][1], color='k', lw=1)
-            plt.text(x=xrel_mids[i], y=line_y[i], s=pstrs[i+3], size=12) 
+    if signif != False:
+        # draw signif over bar
+        xloc_mids = [-0.12, 0.9, 1.9]
+        yloc_bar = np.max(np.concatenate([points0,points1,points2]))+0.004
+        for i in range(3):
+            if pstrs[i] != None:
+                plt.text(x=xloc_mids[i], y=yloc_bar, s=pstrs[i], size=12)
+
+        # draw signif btwn bar
+        xrel_mids = [0.4,1,1.4]
+        line_xranges = [[0.2,0.45], [0.2,0.8], [0.55,0.8]]
+        line_y = [yloc_bar+plus_bot, yloc_bar+plus_top, yloc_bar+plus_bot]
+
+        for i in range(3):
+            if pstrs[i+3]!=None:
+                plt.axhline(y=line_y[i], xmin=line_xranges[i][0], xmax=line_xranges[i][1], color='k', lw=1)
+                plt.text(x=xrel_mids[i], y=line_y[i], s=pstrs[i+3], size=12) 
     
 
     ax.set_ylabel(yname)
@@ -187,6 +185,8 @@ def make_barplot_errorbar(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,
     if outfn != None: 
         plt.savefig(outfn, transparent=True,bbox_inches = "tight")
         plt.close()
+    else:
+        return fig, ax
 
 def average_groups(X, V):
     N = len(X)

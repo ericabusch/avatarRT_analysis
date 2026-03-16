@@ -2,11 +2,13 @@
 import os, sys, glob
 import numpy as np
 
-PROJECT_PATH = '/gpfs/milgram/pi/turk-browne/users/elb77/BCI/rt-cloud/projects/avatarRT/'
-DATA_PATH = '/gpfs/milgram/pi/turk-browne/users/elb77/BCI/rt-cloud/projects/avatarRT/experiment/subjects'
+PROJECT_PATH = '../..'
+DATA_PATH = f'{PROJECT_PATH}/experiment/subjects'
 SCRATCH_PATH='/gpfs/milgram/scratch60/turk-browne/elb77/rtoffline/'
 INTERMEDIATE_RESULTS_PATH = f'{PROJECT_PATH}/offline_analyses/final_analysis_scripts/results/intermediate_results'
 FINAL_RESULTS_PATH = f'{PROJECT_PATH}/offline_analyses/final_analysis_scripts/results/final_results'
+
+SESSION_TRACKER = f'{PROJECT_PATH}/offline_analyses/info/session_tracker_amended.csv' 
 
 SUB_NUMBERS = np.arange(5, 26)
 SUB_NUMBERS = SUB_NUMBERS[SUB_NUMBERS!=12] # 12 dropped out
@@ -15,7 +17,7 @@ WM_first = [5,7,9,11,13,15,17,19,21,23,24]
 WM_FIRST = [f'avatarRT_sub_{s:02d}' for s in WM_first] # subjects who received WMP before OMP
 exclude_from_neural_analyses = [12,9,20] # 12 dropped, 9 had scanner issue, 20 fell asleep
 
-
+# Simulated subject codes
 CODES=['AA','BB','CC','DD','EE','GG','HH','JJ','KK','MM','NN','PP','QQ','SS','TT','VV','WW','XX','YY','ZZ']
 SIMULATED_SUBS = [f'avatarRT_sub_{S}' for S in CODES]
 
@@ -27,7 +29,7 @@ SLRAD=3
 SHIFTBY=2
 SEED=44
 REGRESSOR_VERSION='regressors_1024'
-CALIB_TR=10
+CALIB_TR=10 # number of calibration TRs excluded from the beginning of each run
 NPERM=1000
 ALPHAS = 10.**np.arange(-2, 20, 1)
 VERBOSE=1

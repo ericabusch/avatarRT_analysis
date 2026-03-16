@@ -1,7 +1,16 @@
 # avatarRT_analysis
+*updated March 2026, ELB, with supplemental analyses after revision*
 
-This repository contains the analysis scripts for our real-time fMRI experiment. `behavioral_learning.py` has the results for the BCI learning effects indexed by behavior (i.e., $\Delta Brain Control$). `neural_EVR_alanysis.py` contains the estimated changes in neural alignment with manifold components as a result of BCI learning. `joystick_decoding` and `searchlight_location_prediction_himalaya.py` contain decoding of the avatar's location in space, both during the joystick task and across neurofeedback runs. `run_randomise.sh` shows how we ran statistical tests over the searchlight results. 
+This repository contains the analysis scripts for our real-time fMRI experiment testing neural manifold constraints on learning. 
+
+Main plots and results: 
+Figure 1B: shows embeddings visualized in `embedding_scatterplots.ipynb` (other method embeddings shown in supp. figures)
+Figure 1C: shows the results of the ridge regression analysis (implemented with the himalaya package) -- implemented in `joystick_decoding.py`
+Figure 1D: shows the results of the RSA analysis (implemented with the mantel package) -- implemented in `joystick_decoding.py`
+
+
+`behavioral_learning.py` has the results for the BCI learning effects indexed by behavior (i.e., $\Delta Brain Control$). `neural_EVR_alanysis.py` contains the estimated changes in neural alignment with manifold components as a result of BCI learning. `joystick_decoding` and `searchlight_location_prediction_himalaya.py` contain decoding of the avatar's location in space, both during the joystick task and across neurofeedback runs. `run_randomise.sh` shows how we ran statistical tests over the searchlight results. 
 
 Plots were generated within the jupyter notebooks, though statistics were run within the `BCI_statistics_final.Rmd` script and visualized over the plots with those results from bootstrapping. Linear mixed effects models were also run in `BCI_statistics_final.Rmd`. All python scripts were run within the environment listed in `environment.yml`. 
 
-This software was implemented and run on a Red Hat Linux Compute Cluster ("Red Hat Enterprise Linux Server 7.9 (Maipo)"). The demo was additionally tested on a macOS Ventura version 13.4.1. The conda environment specified in environment.yml contains all dependencies to recreate our compute environment. The environment can be created using conda env create environment.yml with anaconda (tested with conda version 4.10.1 on macOS and conda 4.12.0 on Linux); took around 16 minutes to create environment on local macOS. The scripts here were run with parallelization both within-script and at the job level on our HPC cluster using dead-simple queue.
+This software was implemented and run on a Red Hat Linux Compute Cluster ("Red Hat Enterprise Linux Server 7.9 (Maipo)"). The demo was additionally tested on a macOS Ventura version 13.4.1. The conda environment specified in environment.yml contains all dependencies to recreate our compute environment. The environment can be created using `conda env create environment.yml` with anaconda (tested with conda version 4.10.1 on macOS and conda 4.12.0 on Linux); took around 16 minutes to create environment on local macOS. The scripts here were run with parallelization both within-script and at the job level on our HPC cluster using dead-simple queue (dSQ).

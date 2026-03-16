@@ -22,7 +22,7 @@ def delta_evr_across_components(subject_id, session_name_mapping):
         run_numbers = [1,2,3,4]
         for run in run_numbers:
             # this will return projected onto the potential NFB comps
-            XTarget = helper.load_component_data(subject_id ,  ses_id, run, component_number=None, by_trial=False, shift_by=2)
+            XTarget = helper.load_component_data(subject_id , ses_id, run, component_number=None, by_trial=False, shift_by=2)
             evr_mat = helper.run_EVR(XTarget)
             for comparison_comp, comparison_info in session_name_mapping.items():
                 idx = comparison_info[1]
