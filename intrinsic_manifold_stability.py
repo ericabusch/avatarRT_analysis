@@ -214,6 +214,13 @@ def plot_manifold_stability(rnd_df):
 
     _, p0, _ = helper.permutation_test(a, 10000, alternative='two-sided')
     _, p1, _ = helper.permutation_test(b, 10000, alternative='two-sided')
+    # get confidence intervals for the means
+    mean_a, lower_a, upper_a = helper.bootstrap_ci(a[0], n_boot=10000)
+    mean_b, lower_b, upper_b = helper.bootstrap_ci(b[0], n_boot=10000)
+    # display results with p-values and confidence intervals
+    print(f'\nManifold stability — bootstrap CIs:')
+    print(f'  intrinsic2intrinsic: mean={mean_a:.4f}  95%CI=[{lower_a:.4f}, {upper_a:.4f}]')
+    print(f'  intrinsic2others:    mean={mean_b:.4f}  95%CI=[{lower_b:.4f}, {upper_b:.4f}]')
 
     print(f'\nManifold stability — permutation tests (two-sided, vs. 0):')
     print(f'  intrinsic2intrinsic: p = {p0:.4f}  {determine_symbol(p0)}')

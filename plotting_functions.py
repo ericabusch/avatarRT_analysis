@@ -21,7 +21,7 @@ def determine_symbol(pval):
         return symbols['0.1']
     return 'n.s.'
 
-def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.06], outfn=None, title='',plus_bot=0.04, plus_top=0.07, n_iter=1000, lines=True, sample_alternative='greater',pairwise_alternative='greater',ylabel=None,xlabel=None):
+def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.06], outfn=None, title='',plus_bot=0.04, plus_top=0.07, n_iter=1000, lines=True, sample_alternative='greater',pairwise_alternative='greater',ylabel=None,xlabel=None,print_stats=False):
     ## already filter the dataframe to give it just the data necessary - the version you are running or whatever
     # so only have to select the yname
     np.random.seed(10)
@@ -51,7 +51,11 @@ def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.
     _,lower1,upper1=helper.bootstrap_ci(v_im, n_boot=n_iter)
     _,lower2,upper2=helper.bootstrap_ci(v_wm, n_boot=n_iter)
     _,lower3,upper3=helper.bootstrap_ci(v_om, n_boot=n_iter)
-    print(f'IM p={np.round(p1,4)}, mean={np.round(np.mean(v_im),4)} CI=[{np.round(lower1,4)},{np.round(upper1,4)}], WM p={np.round(p2,4)}, mean={np.round(np.mean(v_wm),4)}, CI=[{np.round(lower2,4)},{np.round(upper2,4)}], OM p={np.round(p3,4)}, mean={np.round(np.mean(v_om),4)}, CI=[{np.round(lower3,4)},{np.round(upper3,4)}]')
+    if print_stats:
+        print(f'IM p={np.round(p1,4)}, mean={np.round(np.mean(v_im),4)} CI=[{np.round(lower1,4)},{np.round(upper1,4)}]')
+        print(f'IM p={np.round(p2,4)}, mean={np.round(np.mean(v_wm),4)} CI=[{np.round(lower2,4)},{np.round(upper2,4)}]')
+        print(f'IM p={np.round(p3,4)}, mean={np.round(np.mean(v_om),4)} CI=[{np.round(lower3,4)},{np.round(upper3,4)}]')
+    
 
     if type(pairwise_alternative) == str:
         print(pairwise_alternative)

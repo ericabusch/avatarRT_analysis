@@ -124,5 +124,31 @@ if __name__ == '__main__':
     sub_overall = pd.concat(subtraction_list_overall).reset_index(drop=True)
     res_overall.to_csv(f'{FINAL_RESULTS_PATH}/runwise_neural_variance_control.csv')
     sub_overall.to_csv(f'{FINAL_RESULTS_PATH}/runwise_neural_variance_run_change_control.csv')
+
+    # ── Statistical analysis: bootstrap CI, permutation tests, Cohen's d ────────
+    exclude_str = [f'avatarRT_sub_{s:02d}' for s in exclude_from_neural_analyses]
+    sub_filt = sub_overall[~sub_overall['subject_id'].isin(exclude_str)]
+
+    print('\n=== Neural manifold variance: bootstrap CIs, permutation tests, Cohen\'s d ===')
+    for dt in ['manifold_projection', 'voxel_data', 'component_data']:
+        print(f'\n-- {dt} --')
+        for metric in ['delta_total_variance', 'delta_average_variance']:
+            print(f'  {metric}:')
+            vals = {}
+            for cond in ['IM', 'WMP', 'OMP']:
+                v = (sub_filt[(sub_filt['data_type'] == dt) & (sub_filt['session_type'] == cond)]
+                     .sort_values('subject_id')[metric].values)
+                vals[cond] = v
+                m, lo, hi = helper.bootstrap_ci(v, n_boot=10000)
+                _, p, _   = helper.permutation_test(
+                    np.array([v, np.zeros(len(v))]), 10000, alternative='two-sided')
+                d = helper.cohens_d_paired(v)
+                print(f'    {cond}: mean={m:.4f}  95%CI=[{lo:.4f},{hi:.4f}]  p_vs_0={p:.4f}  d={d:.4f}')
+            for c1, c2 in [('IM', 'WMP'), ('IM', 'OMP'), ('WMP', 'OMP')]:
+                _, p_pair, _ = helper.permutation_test(
+                    np.array([vals[c1], vals[c2]]), 10000, alternative='two-sided')
+                m_diff, lo_diff, hi_diff = helper.bootstrap_ci(vals[c1] - vals[c2], n_boot=10000)
+                d_pair = helper.cohens_d_paired(vals[c1] - vals[c2])
+                print(f'    {c1} vs {c2}:  mean={m_diff:.4f}  p={p_pair:.4f}  95%CI=[{lo_diff:.4f},{hi_diff:.4f}]  Cohen\'s d={d_pair:.4f}')
     
 

@@ -72,6 +72,10 @@ def get_brain_control_from_success_file(df, session, run, trial=None):
 
 def bootstrap_ci(data, n_boot=10000, ci=95, seed=4):
     rng = np.random.default_rng(seed)
+    # check if data is 2D - compute difference if so
+    if data.ndim == 2:
+        data = data[:,0] - data[:,1]
+
     means = np.array([
         rng.choice(data, size=len(data), replace=True).mean()
         for _ in range(n_boot)
@@ -79,6 +83,9 @@ def bootstrap_ci(data, n_boot=10000, ci=95, seed=4):
     lower = np.percentile(means, (100 - ci) / 2)
     upper = np.percentile(means, 100 - (100 - ci) / 2)
     return np.mean(data), lower, upper
+
+def cohens_d_paired(diffs):
+    return np.mean(diffs) / np.std(diffs, ddof=1)
 
 def permutation_test(data, n_iterations, alternative='greater'):
     
