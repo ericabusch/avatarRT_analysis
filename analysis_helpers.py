@@ -13,7 +13,7 @@ import nibabel as nib
 sys.path.insert(0,'../..')
 from MRAE.mrae import ManifoldRegularizedAutoencoder
 from MRAE import dataHandler
-from TPHATE.tphate import tphate
+import tphate
 
 ######## functions pertaining to getting experiment information
 
@@ -69,6 +69,16 @@ def get_brain_control_from_success_file(df, session, run, trial=None):
     return np.nanmean(rows)
 
 ######### ######### ######### data processing & statistics ######### ######### #########  
+
+def bootstrap_ci(data, n_boot=10000, ci=95, seed=4):
+    rng = np.random.default_rng(seed)
+    means = np.array([
+        rng.choice(data, size=len(data), replace=True).mean()
+        for _ in range(n_boot)
+    ])
+    lower = np.percentile(means, (100 - ci) / 2)
+    upper = np.percentile(means, 100 - (100 - ci) / 2)
+    return np.mean(data), lower, upper
 
 def permutation_test(data, n_iterations, alternative='greater'):
     

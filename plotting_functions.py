@@ -3,9 +3,8 @@ import pandas as pd
 import os, sys, glob
 import matplotlib.pyplot as plt
 import matplotlib
-import scprep
 import seaborn as sns
-from scipy.stats import ttest_1samp, zscore
+from scipy.stats import zscore
 import analysis_helpers as helper
 from scipy.ndimage import zoom
 from config import *
@@ -46,10 +45,13 @@ def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.
     v_om = d[d[xname]=='OMP'][yname].values
         
     # run stats
-    _,p1=ttest_1samp(v_im, popmean=0, alternative=sample_alternative)
-    _,p2=ttest_1samp(v_wm, popmean=0, alternative=sample_alternative)
-    _,p3=ttest_1samp(v_om, popmean=0, alternative=sample_alternative)
-    print(f'IM {np.round(p1,4)}, WM {np.round(p2,4)}, OM {np.round(p3,4)}')
+    _,p1,_=helper.permutation_test(np.array([v_im, np.zeros(len(v_im))]), n_iter, alternative=sample_alternative)
+    _,p2,_=helper.permutation_test(np.array([v_wm, np.zeros(len(v_wm))]), n_iter, alternative=sample_alternative)
+    _,p3,_=helper.permutation_test(np.array([v_om, np.zeros(len(v_om))]), n_iter, alternative=sample_alternative)
+    _,lower1,upper1=helper.bootstrap_ci(v_im, n_boot=n_iter)
+    _,lower2,upper2=helper.bootstrap_ci(v_wm, n_boot=n_iter)
+    _,lower3,upper3=helper.bootstrap_ci(v_om, n_boot=n_iter)
+    print(f'IM p={np.round(p1,4)}, mean={np.round(np.mean(v_im),4)} CI=[{np.round(lower1,4)},{np.round(upper1,4)}], WM p={np.round(p2,4)}, mean={np.round(np.mean(v_wm),4)}, CI=[{np.round(lower2,4)},{np.round(upper2,4)}], OM p={np.round(p3,4)}, mean={np.round(np.mean(v_om),4)}, CI=[{np.round(lower3,4)},{np.round(upper3,4)}]')
 
     if type(pairwise_alternative) == str:
         print(pairwise_alternative)
@@ -140,10 +142,13 @@ def make_barplot_errorbar(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,
     points1 = d[d[xname]=='WMP'][yname].values
     points2 = d[d[xname]=='OMP'][yname].values
     # run stats
-    _,p1=ttest_1samp(v_im, popmean=0, alternative=sample_alternative)
-    _,p2=ttest_1samp(v_wm, popmean=0, alternative=sample_alternative)
-    _,p3=ttest_1samp(v_om, popmean=0, alternative=sample_alternative)
-    print(f'IM {np.round(p1,4)}, WM {np.round(p2,4)}, OM {np.round(p3,4)}')
+    _,p1,_=helper.permutation_test(np.array([v_im, np.zeros(len(v_im))]), n_iter, alternative=sample_alternative)
+    _,p2,_=helper.permutation_test(np.array([v_wm, np.zeros(len(v_wm))]), n_iter, alternative=sample_alternative)
+    _,p3,_=helper.permutation_test(np.array([v_om, np.zeros(len(v_om))]), n_iter, alternative=sample_alternative)
+    _,lower1,upper1=helper.bootstrap_ci(v_im, n_boot=n_iter)
+    _,lower2,upper2=helper.bootstrap_ci(v_wm, n_boot=n_iter)
+    _,lower3,upper3=helper.bootstrap_ci(v_om, n_boot=n_iter)
+    print(f'IM p={np.round(p1,4)} CI=[{np.round(lower1,4)},{np.round(upper1,4)}], WM p={np.round(p2,4)} CI=[{np.round(lower2,4)},{np.round(upper2,4)}], OM p={np.round(p3,4)} CI=[{np.round(lower3,4)},{np.round(upper3,4)}]')
 
     _,p4,_=helper.permutation_test(np.array([v_im,v_wm]), n_iter, alternative=pairwise_alternative)
     _,p5,_=helper.permutation_test(np.array([v_im,v_om]), n_iter, alternative=pairwise_alternative)
@@ -235,9 +240,16 @@ def create_scatterplot_2dim_colors(tphate_embedding, xlabels, zlabels, colors_4,
     if plot == False:
         return T1, hex_colors
     if twoDScatter:
-        scprep.plot.scatter2d(T1, c=rgb_colors, ticks=False, alpha=1,s=size,figsize=(3,3),filename=outname,legend=False  )
+        fig, ax = plt.subplots(figsize=(3, 3))
+        ax.scatter(T1[:, 0], T1[:, 1], c=rgb_colors, alpha=1, s=size)
+        ax.set_xticks([]); ax.set_yticks([])
+        if outname: plt.savefig(outname, bbox_inches='tight')
     else:
-        scprep.plot.scatter3d(T1, c=rgb_colors, ticks=False, alpha=1,s=size,figsize=(3,3),filename=outname,legend=False )
+        fig = plt.figure(figsize=(3, 3))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(T1[:, 0], T1[:, 1], T1[:, 2], c=rgb_colors, alpha=1, s=size)
+        ax.set_xticks([]); ax.set_yticks([]); ax.set_zticks([])
+        if outname: plt.savefig(outname, bbox_inches='tight')
     if outname != None:
         plt.close()
     return final_colormap,hex_colors

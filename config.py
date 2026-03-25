@@ -2,13 +2,15 @@
 import os, sys, glob
 import numpy as np
 
-PROJECT_PATH = '../..'
-DATA_PATH = f'{PROJECT_PATH}/experiment/subjects'
-SCRATCH_PATH='/gpfs/milgram/scratch60/turk-browne/elb77/rtoffline/'
-INTERMEDIATE_RESULTS_PATH = f'{PROJECT_PATH}/offline_analyses/final_analysis_scripts/results/intermediate_results'
-FINAL_RESULTS_PATH = f'{PROJECT_PATH}/offline_analyses/final_analysis_scripts/results/final_results'
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-SESSION_TRACKER = f'{PROJECT_PATH}/offline_analyses/info/session_tracker_amended.csv' 
+PROJECT_PATH = '../..'
+DATA_PATH = os.path.expanduser('~/Desktop/BCI/avatarRT_dryad/avatarRT_subject_data')
+SCRATCH_PATH = os.path.join(_SCRIPT_DIR, 'results', 'scratch')
+INTERMEDIATE_RESULTS_PATH = os.path.join(_SCRIPT_DIR, 'results', 'intermediate_results')
+FINAL_RESULTS_PATH = os.path.join(_SCRIPT_DIR, 'results', 'final_results')
+
+SESSION_TRACKER = os.path.join(DATA_PATH, 'session_tracker.csv')
 
 SUB_NUMBERS = np.arange(5, 26)
 SUB_NUMBERS = SUB_NUMBERS[SUB_NUMBERS!=12] # 12 dropped out
@@ -42,6 +44,7 @@ BEHAV_SESSION_W_SIM = f'{FINAL_RESULTS_PATH}/behavioral_change_runwise_with_simu
 
 colors_main = {'OMP': '#5C940D', 'WMP': '#2E8A82', 'IM': '#00356b'}
 colors_sim = {'OMP': '#BCDC8F', 'WMP': '#9ACCD5', 'IM': '#618EBC'}
+color_gray = '#A3A3A3'
 context_params = {'font.size': 12.0,
  'axes.labelsize': 'large',
  'axes.titlesize': 'large',
