@@ -12,7 +12,7 @@
 
 
 INPUT_FN=$1
-cd /gpfs/milgram/project/turk-browne/users/elb77/BCI/rt-cloud/projects/avatarRT/offline_analyses/final_analysis_scripts/results/sl_results/
+cd ./final_analysis_scripts/results/sl_results/
 fn=$INPUT_FN
 to_replace='.nii.gz'
 replace_with='randomise_output'
