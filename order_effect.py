@@ -19,6 +19,7 @@ from scipy.stats import ttest_ind
 from statsmodels.formula.api import ols
 from statsmodels.stats.anova import anova_lm
 import analysis_helpers as helper
+from plotting_functions import determine_symbol
 from config import *
 
 RESULTS_PUBLIC  = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'results_public')
@@ -36,13 +37,6 @@ PALETTE = ["#fca5a5", "#ff0000"]   # light red = WMP-first, dark red = OMP-first
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-
-def annot_pval(p):
-    if p < 0.001: return '***'
-    elif p < 0.01: return '**'
-    elif p < 0.05: return '*'
-    return 'n.s.'
-
 
 # ─── Analysis ─────────────────────────────────────────────────────────────────
 
@@ -176,7 +170,7 @@ def plot_order_barplot(df):
         # Between-group comparison (WMP-first > OMP-first)
         _, p_btwn = ttest_ind(v0, v1, permutations=10000, alternative='greater')
         ax.plot([x0, x1], [0.7, 0.7], lw=1, c='k')
-        ax.text(j, ymax + 0.18, annot_pval(p_btwn), ha='center', va='bottom',
+        ax.text(j, ymax + 0.18, determine_symbol(p_btwn), ha='center', va='bottom',
                 color='k', fontsize=12)
 
         # Per-bar one-sample tests vs 0
@@ -186,9 +180,9 @@ def plot_order_barplot(df):
         _, lower1, upper1 = helper.bootstrap_ci(v1.values, n_boot=10000)
         print(f'{ses} WMP-first: p={p0:.4f}, 95% CI=[{lower0:.4f}, {upper0:.4f}]')
         print(f'{ses} OMP-first: p={p1:.4f}, 95% CI=[{lower1:.4f}, {upper1:.4f}]')
-        ax.text(x0, ymax + 0.05, annot_pval(p0), ha='center', va='bottom',
+        ax.text(x0, ymax + 0.05, determine_symbol(p0), ha='center', va='bottom',
                 color='k', fontsize=9)
-        ax.text(x1, ymax + 0.05, annot_pval(p1), ha='center', va='bottom',
+        ax.text(x1, ymax + 0.05, determine_symbol(p1), ha='center', va='bottom',
                 color='k', fontsize=9)
 
     # Fix legend

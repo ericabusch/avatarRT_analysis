@@ -11,7 +11,6 @@
 #   IM-trained decoders evaluated across sessions: delta_mse (run 4 - run 1).
 #   Requires: results/intermediate_results/decoding_results_cross_session_run_cross_validation.csv
 #             results/final_results/runwise_component_EVR_neural_analysis_run_change_control.csv
-#   Skipped gracefully if either file is absent.
 
 import numpy as np
 import pandas as pd
@@ -22,18 +21,17 @@ matplotlib.rcParams["pdf.use14corefonts"] = True
 import matplotlib.pyplot as plt
 import seaborn as sns
 import analysis_helpers as helper
-from plotting_functions import make_barplot_points, determine_symbol
+from plotting_functions import make_barplot_points_precomputed, determine_symbol
 from config import *
 
-RESULTS_PUBLIC   = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'results_public')
 FINAL_RESULTS    = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'final_results')
 INTERMEDIATE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'intermediate_results')
 PLOTS_DIR        = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'plots')
 
-RESAMPLING_FN    = os.path.join(RESULTS_PUBLIC, 'random_resampling_components.csv')
+RESAMPLING_FN    = os.path.join(INTERMEDIATE, 'random_resampling_components.csv')
 EVR_RUNCHANGE_FN = os.path.join(FINAL_RESULTS,  'runwise_component_EVR_neural_analysis_run_change_control.csv')
-DECODING_FN      = os.path.join(RESULTS_PUBLIC, 'decoding_results_aug6_cross_session_run_cross_validation.csv')
-DELTA_DECODING_FN = os.path.join(RESULTS_PUBLIC, 'delta_decoding.csv')
+DECODING_FN      = os.path.join(INTERMEDIATE, 'decoding_results_aug6_cross_session_run_cross_validation.csv')
+DELTA_DECODING_FN = os.path.join(INTERMEDIATE, 'delta_decoding.csv')
 
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
@@ -125,33 +123,98 @@ def plot_resampling_results(results):
     Plot 1: z-scored EVR change of NFB component vs. session type.
     Plot 2: z-score of 0 in the null distribution (sanity check).
     """
+    # Compute stats for zscored_difference
+    d_wide_z = results.pivot(index='subject_id', columns='session_type', values='zscored_difference').dropna()
+    v_im_z = d_wide_z['IM'].values
+    v_wm_z = d_wide_z['WMP'].values
+    v_om_z = d_wide_z['OMP'].values
+    _, p_im_z, _  = helper.permutation_test(np.array([v_im_z, np.zeros(len(v_im_z))]), 10000, alternative='greater')
+    _, p_wm_z, _  = helper.permutation_test(np.array([v_wm_z, np.zeros(len(v_wm_z))]), 10000, alternative='greater')
+    _, p_om_z, _  = helper.permutation_test(np.array([v_om_z, np.zeros(len(v_om_z))]), 10000, alternative='greater')
+    _, p_im_wm_z, _ = helper.permutation_test(np.array([v_im_z, v_wm_z]), 10000, alternative='greater')
+    _, p_im_om_z, _ = helper.permutation_test(np.array([v_im_z, v_om_z]), 10000, alternative='greater')
+    _, p_wm_om_z, _ = helper.permutation_test(np.array([v_wm_z, v_om_z]), 10000, alternative='greater')
+    m_im_z, lo_im_z, hi_im_z, _ = helper.bootstrap_ci(v_im_z, n_boot=10000, verbose=0)
+    m_wm_z, lo_wm_z, hi_wm_z, _ = helper.bootstrap_ci(v_wm_z, n_boot=10000, verbose=0)
+    m_om_z, lo_om_z, hi_om_z, _ = helper.bootstrap_ci(v_om_z, n_boot=10000, verbose=0)
+    m_im_wm_z, lo_im_wm_z, hi_im_wm_z, _ = helper.bootstrap_ci(v_im_z - v_wm_z, n_boot=10000, verbose=0)
+    m_im_om_z, lo_im_om_z, hi_im_om_z, _ = helper.bootstrap_ci(v_im_z - v_om_z, n_boot=10000, verbose=0)
+    m_wm_om_z, lo_wm_om_z, hi_wm_om_z, _ = helper.bootstrap_ci(v_wm_z - v_om_z, n_boot=10000, verbose=0)
+    d_im_z  = helper.cohens_d_paired(v_im_z, verbose=0)
+    d_wm_z  = helper.cohens_d_paired(v_wm_z, verbose=0)
+    d_om_z  = helper.cohens_d_paired(v_om_z, verbose=0)
+    d_im_wm_z = helper.cohens_d_paired(v_im_z - v_wm_z, verbose=0)
+    d_im_om_z = helper.cohens_d_paired(v_im_z - v_om_z, verbose=0)
+    d_wm_om_z = helper.cohens_d_paired(v_wm_z - v_om_z, verbose=0)
+
+    print('\n--- zscored_difference (EVR resampling) ---')
+    print(f'IM   vs 0:  mean={m_im_z:.2f}  95%CI=[{lo_im_z:.2f},{hi_im_z:.2f}]  p={p_im_z:.3f}  d={d_im_z:.2f}')
+    print(f'WMP  vs 0:  mean={m_wm_z:.2f}  95%CI=[{lo_wm_z:.2f},{hi_wm_z:.2f}]  p={p_wm_z:.3f}  d={d_wm_z:.2f}')
+    print(f'OMP  vs 0:  mean={m_om_z:.2f}  95%CI=[{lo_om_z:.2f},{hi_om_z:.2f}]  p={p_om_z:.3f}  d={d_om_z:.2f}')
+    print(f'IM vs WMP:  mean_diff={m_im_wm_z:.2f}  95%CI=[{lo_im_wm_z:.2f},{hi_im_wm_z:.2f}]  p={p_im_wm_z:.3f}  d={d_im_wm_z:.2f}')
+    print(f'IM vs OMP:  mean_diff={m_im_om_z:.2f}  95%CI=[{lo_im_om_z:.2f},{hi_im_om_z:.2f}]  p={p_im_om_z:.3f}  d={d_im_om_z:.2f}')
+    print(f'WMP vs OMP: mean_diff={m_wm_om_z:.2f}  95%CI=[{lo_wm_om_z:.2f},{hi_wm_om_z:.2f}]  p={p_wm_om_z:.3f}  d={d_wm_om_z:.2f}')
+
+    evr_stats = []
+    for label, vals, p, cohd, ci_lo, ci_hi, alt in [
+        ('IM',  v_im_z, p_im_z, d_im_z, lo_im_z, hi_im_z, 'greater'),
+        ('WMP', v_wm_z, p_wm_z, d_wm_z, lo_wm_z, hi_wm_z, 'greater'),
+        ('OMP', v_om_z, p_om_z, d_om_z, lo_om_z, hi_om_z, 'greater'),
+    ]:
+        evr_stats.append({'comparison': f'z-EVR: {label} vs 0',
+            'test': f'permutation_test (n_iter=10000, alternative={alt})',
+            'group1': label, 'group2': '0 (null)', 'n1': len(vals), 'n2': np.nan,
+            'mean1': np.mean(vals), 'mean2': 0, 'p_value': p, 'ci_lower': ci_lo, 'ci_upper': ci_hi, 'cohens_d': cohd})
+    for label, g1, g2, g1v, g2v, diff_vals, p, cohd, ci_lo, ci_hi, alt in [
+        ('IM vs WMP', 'IM', 'WMP', v_im_z, v_wm_z, v_im_z - v_wm_z, p_im_wm_z, d_im_wm_z, lo_im_wm_z, hi_im_wm_z, 'greater'),
+        ('IM vs OMP', 'IM', 'OMP', v_im_z, v_om_z, v_im_z - v_om_z, p_im_om_z, d_im_om_z, lo_im_om_z, hi_im_om_z, 'greater'),
+        ('WMP vs OMP','WMP','OMP', v_wm_z, v_om_z, v_wm_z - v_om_z, p_wm_om_z, d_wm_om_z, lo_wm_om_z, hi_wm_om_z, 'greater'),
+    ]:
+        evr_stats.append({'comparison': f'z-EVR: {label}',
+            'test': f'permutation_test (n_iter=10000, alternative={alt})',
+            'group1': g1, 'group2': g2, 'n1': len(g1v), 'n2': len(g2v),
+            'mean1': np.mean(g1v), 'mean2': np.mean(g2v), 'p_value': p, 'ci_lower': ci_lo, 'ci_upper': ci_hi, 'cohens_d': cohd})
+    evr_stats_df = pd.DataFrame(evr_stats)
+    evr_stats_df['significant_0.05'] = evr_stats_df['p_value'] < 0.05
+    evr_stats_fn = os.path.join(INTERMEDIATE, 'evr_resampling_stats.csv')
+    evr_stats_df.to_csv(evr_stats_fn, index=False)
+    print(f'Saved statistics to {evr_stats_fn}')
+
     # Plot 1 — z-scored difference
-    make_barplot_points(
+    fig, ax = make_barplot_points_precomputed(
         results, 'zscored_difference', 'session_type',
+        pvals_vs_0=[p_im_z, p_wm_z, p_om_z],
+        pvals_pairwise=[p_im_wm_z, p_im_om_z, p_wm_om_z],
         exclude_subs=[9, 20],
         ylim=[-2.5, 3],
-        outfn=os.path.join(PLOTS_DIR, 'consolidation_zscored_evr.pdf'),
-        title='',
         plus_bot=0.8, plus_top=1.3,
-        n_iter=10000,
-        sample_alternative='greater',
-        pairwise_alternative='greater',
         ylabel='Z-Score', xlabel='Session type',
     )
+    plt.savefig(os.path.join(PLOTS_DIR, 'consolidation_zscored_evr.pdf'), transparent=True, bbox_inches='tight', format='pdf')
+    plt.close()
     print(f'Saved plot: {os.path.join(PLOTS_DIR, "consolidation_zscored_evr.pdf")}')
 
     # Plot 2 — null z-score of 0 (sanity check)
-    make_barplot_points(
+    d_wide_null = results.pivot(index='subject_id', columns='session_type', values='null_difference').dropna()
+    v_im_null = d_wide_null['IM'].values
+    v_wm_null = d_wide_null['WMP'].values
+    v_om_null = d_wide_null['OMP'].values
+    _, p_im_null, _  = helper.permutation_test(np.array([v_im_null, np.zeros(len(v_im_null))]), 10000, alternative='greater')
+    _, p_wm_null, _  = helper.permutation_test(np.array([v_wm_null, np.zeros(len(v_wm_null))]), 10000, alternative='greater')
+    _, p_om_null, _  = helper.permutation_test(np.array([v_om_null, np.zeros(len(v_om_null))]), 10000, alternative='greater')
+    _, p_im_wm_null, _ = helper.permutation_test(np.array([v_im_null, v_wm_null]), 10000, alternative='greater')
+    _, p_im_om_null, _ = helper.permutation_test(np.array([v_im_null, v_om_null]), 10000, alternative='greater')
+    _, p_wm_om_null, _ = helper.permutation_test(np.array([v_wm_null, v_om_null]), 10000, alternative='greater')
+    fig, ax = make_barplot_points_precomputed(
         results, 'null_difference', 'session_type',
+        pvals_vs_0=[p_im_null, p_wm_null, p_om_null],
+        pvals_pairwise=[p_im_wm_null, p_im_om_null, p_wm_om_null],
         exclude_subs=[9, 20],
         ylim=[-0.01, 0.01],
-        outfn=os.path.join(PLOTS_DIR, 'consolidation_null_evr.pdf'),
-        title='',
-        n_iter=10000,
-        sample_alternative='greater',
-        pairwise_alternative='greater',
         ylabel='z(0) of null', xlabel='Session type',
     )
+    plt.savefig(os.path.join(PLOTS_DIR, 'consolidation_null_evr.pdf'), transparent=True, bbox_inches='tight', format='pdf')
+    plt.close()
     print(f'Saved plot: {os.path.join(PLOTS_DIR, "consolidation_null_evr.pdf")}')
 
 
@@ -234,13 +297,29 @@ def plot_decoding_results(df_difference):
                   np.zeros(len(df_difference['subject_id'].unique()))])
     b = np.array([df_difference[df_difference['test_session_type'] == 'WMP']['delta_mse'].values,
                   np.zeros(len(df_difference['subject_id'].unique()))])
-    _, p_omp, _ = helper.permutation_test(a, 10000)
-    _, p_wmp, _ = helper.permutation_test(b, 10000)
-    mean_omp, lower_omp, upper_omp = helper.bootstrap_ci(a[0], n_boot=10000)
-    mean_wmp, lower_wmp, upper_wmp = helper.bootstrap_ci(b[0], n_boot=10000)
-    
-    print(f'OMP delta_mse: p={p_omp:.4f}, mean={mean_omp:.4f}, 95% CI=[{lower_omp:.4f}, {upper_omp:.4f}]')
-    print(f'WMP delta_mse: p={p_wmp:.4f}, mean={mean_wmp:.4f}, 95% CI=[{lower_wmp:.4f}, {upper_wmp:.4f}]')
+    _, p_omp, _ = helper.permutation_test(a, 10000, alternative='greater')
+    _, p_wmp, _ = helper.permutation_test(b, 10000, alternative='greater')
+    mean_omp, lower_omp, upper_omp, _ = helper.bootstrap_ci(a[0], n_boot=10000, verbose=0)
+    mean_wmp, lower_wmp, upper_wmp, _ = helper.bootstrap_ci(b[0], n_boot=10000, verbose=0)
+    d_omp = helper.cohens_d_paired(a[0], verbose=0)
+    d_wmp = helper.cohens_d_paired(b[0], verbose=0)
+
+    print(f'OMP delta_mse: p={p_omp:.2f}, mean={mean_omp:.2f}, 95% CI=[{lower_omp:.2f}, {upper_omp:.2f}], d={d_omp:.2f}')
+    print(f'WMP delta_mse: p={p_wmp:.2f}, mean={mean_wmp:.2f}, 95% CI=[{lower_wmp:.2f}, {upper_wmp:.2f}], d={d_wmp:.2f}')
+
+    dec_stats = [
+        {'comparison': 'delta_MSE: OMP vs 0', 'test': 'permutation_test (n_iter=10000, alternative=greater)',
+         'group1': 'OMP', 'group2': '0 (null)', 'n1': len(a[0]), 'n2': np.nan,
+         'mean1': mean_omp, 'mean2': 0, 'p_value': p_omp, 'ci_lower': lower_omp, 'ci_upper': upper_omp, 'cohens_d': d_omp},
+        {'comparison': 'delta_MSE: WMP vs 0', 'test': 'permutation_test (n_iter=10000, alternative=greater)',
+         'group1': 'WMP', 'group2': '0 (null)', 'n1': len(b[0]), 'n2': np.nan,
+         'mean1': mean_wmp, 'mean2': 0, 'p_value': p_wmp, 'ci_lower': lower_wmp, 'ci_upper': upper_wmp, 'cohens_d': d_wmp},
+    ]
+    dec_stats_df = pd.DataFrame(dec_stats)
+    dec_stats_df['significant_0.05'] = dec_stats_df['p_value'] < 0.05
+    dec_stats_fn = os.path.join(FINAL_RESULTS, 'cross_session_decoding_stats.csv')
+    dec_stats_df.to_csv(dec_stats_fn, index=False)
+    print(f'Saved statistics to {dec_stats_fn}')
 
     fig, ax = plt.subplots(1, 1, figsize=(3, 4))
     sns.barplot(data=df_difference, x='test_session_type', order=['WMP', 'OMP'],
@@ -302,8 +381,8 @@ def main():
     # mean_im, lower_wmp, upper_wmp = helper.bootstrap_ci(b[0], n_boot=10000)
     
     
-    # print(f'OMP delta_mse: p={p_omp:.4f}, mean={mean_omp:.4f}, 95% CI=[{lower_omp:.4f}, {upper_omp:.4f}]')
-    # print(f'WMP delta_mse: p={p_wmp:.4f}, mean={mean_wmp:.4f}, 95% CI=[{lower_wmp:.4f}, {upper_wmp:.4f}]')
+    # print(f'OMP delta_mse: p={p_omp:.2f}, mean={mean_omp:.2f}, 95% CI=[{lower_omp:.2f}, {upper_omp:.2f}]')
+    # print(f'WMP delta_mse: p={p_wmp:.2f}, mean={mean_wmp:.2f}, 95% CI=[{lower_wmp:.2f}, {upper_wmp:.2f}]')
 
     # ── Analysis 2: Cross-session decoding ──────────────────────────────────
     print('\n--- Cross-session decoding ---')

@@ -1,0 +1,38 @@
+name: rtcloud_av1
+channels:
+  - conda-forge
+dependencies:
+  - flake8
+  - dcm2niix
+  - nibabel
+  - python=3.7
+  - boto3
+  - toml
+  - pydicom
+  - mypy
+  - websocket-client
+  - awscli
+  - nodejs
+  - jupyter
+  - nomkl
+  - tornado
+  - bcrypt
+  - nilearn
+  - numpy
+  - scipy
+  - statsmodels
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - indexed_gzip
+  - rpyc
+  - requests
+  - wsaccel
+  - brainiak
+  - pip:
+    - himalaya
+    - tphate
+    - POT
+    - mantel
+    - mne
+prefix: /Users/elb/miniconda3/envs/rtcloud_av1

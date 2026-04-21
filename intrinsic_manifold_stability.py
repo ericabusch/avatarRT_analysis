@@ -40,7 +40,6 @@ sns.set_context(context_params)
 
 def prep_joystick_data(subject_id):
     """Load (or compute) 20D T-PHATE embedding of joystick session data."""
-    from TPHATE.tphate import tphate as TPHATE_cls
     import nibabel as nib
     temp_fn = os.path.join(SCRATCH_DIR, 'joystick_analyses',
                            f'{subject_id}_20d_TPHATE_embedding.npy')
@@ -54,14 +53,15 @@ def prep_joystick_data(subject_id):
         ds, ti, xi, zi = helper.load_all_joystick_data(subject_id, run, mask_arr, shift_by)
         data.append(ds[ti >= 0])
     voxel_data = np.concatenate(data, axis=0)
-    tph_dst = TPHATE_cls(verbose=0, n_components=20, t=5).fit_transform(voxel_data)
+    tph_dst = helper.embed_tphate(voxel_data, n_components=20)
     np.save(temp_fn, tph_dst)
     return tph_dst
+
+################ NOTE TO SELF  : CONTINUE MAKING SURE THAT ALL CODE USES THE ANALYSIS HELPERS VERSIONS OF FUNCTIONS FOR CONSISTENCY ################
 
 
 def prep_rt_data(subject_id, session_id):
     """Load (or compute) 20D T-PHATE embedding of real-time session data."""
-    from TPHATE.tphate import tphate as TPHATE_cls
     temp_fn = os.path.join(SCRATCH_DIR, 'joystick_analyses',
                            f'{subject_id}_{session_id}_RT_20d_TPHATE_embedding.npy')
     if os.path.exists(temp_fn):
@@ -73,7 +73,7 @@ def prep_rt_data(subject_id, session_id):
         d = helper.get_realtime_data_preprocesssed(subject_id, session_id, run, data_type=None)
         data.append(d)
     voxel_data = np.concatenate(data, axis=0)
-    tph_dst = TPHATE_cls(verbose=0, n_components=20, t=5).fit_transform(voxel_data)
+    tph_dst = helper.embed_tphate(voxel_data, n_components=20)
     np.save(temp_fn, tph_dst)
     return tph_dst
 
@@ -215,16 +215,32 @@ def plot_manifold_stability(rnd_df):
     _, p0, _ = helper.permutation_test(a, 10000, alternative='two-sided')
     _, p1, _ = helper.permutation_test(b, 10000, alternative='two-sided')
     # get confidence intervals for the means
-    mean_a, lower_a, upper_a = helper.bootstrap_ci(a[0], n_boot=10000)
-    mean_b, lower_b, upper_b = helper.bootstrap_ci(b[0], n_boot=10000)
+    mean_a, lower_a, upper_a, _ = helper.bootstrap_ci(a[0], n_boot=10000, verbose=0)
+    mean_b, lower_b, upper_b, _ = helper.bootstrap_ci(b[0], n_boot=10000, verbose=0)
+    d_a = helper.cohens_d_paired(a[0], verbose=0)
+    d_b = helper.cohens_d_paired(b[0], verbose=0)
     # display results with p-values and confidence intervals
     print(f'\nManifold stability — bootstrap CIs:')
-    print(f'  intrinsic2intrinsic: mean={mean_a:.4f}  95%CI=[{lower_a:.4f}, {upper_a:.4f}]')
-    print(f'  intrinsic2others:    mean={mean_b:.4f}  95%CI=[{lower_b:.4f}, {upper_b:.4f}]')
+    print(f'  intrinsic2intrinsic: mean={mean_a:.4f}  95%CI=[{lower_a:.4f}, {upper_a:.4f}]  d={d_a:.4f}')
+    print(f'  intrinsic2others:    mean={mean_b:.4f}  95%CI=[{lower_b:.4f}, {upper_b:.4f}]  d={d_b:.4f}')
 
     print(f'\nManifold stability — permutation tests (two-sided, vs. 0):')
     print(f'  intrinsic2intrinsic: p = {p0:.4f}  {determine_symbol(p0)}')
     print(f'  intrinsic2others:    p = {p1:.4f}  {determine_symbol(p1)}')
+
+    stats_rows = [
+        {'comparison': 'intrinsic2others vs 0', 'test': 'permutation_test (n_iter=10000, alternative=two-sided)',
+         'group1': 'intrinsic2others', 'group2': '0 (null)', 'n1': len(b[0]), 'n2': np.nan,
+         'mean1': mean_b, 'mean2': 0, 'p_value': p1, 'ci_lower': lower_b, 'ci_upper': upper_b, 'cohens_d': d_b},
+        {'comparison': 'intrinsic2intrinsic vs 0', 'test': 'permutation_test (n_iter=10000, alternative=two-sided)',
+         'group1': 'intrinsic2intrinsic', 'group2': '0 (null)', 'n1': len(a[0]), 'n2': np.nan,
+         'mean1': mean_a, 'mean2': 0, 'p_value': p0, 'ci_lower': lower_a, 'ci_upper': upper_a, 'cohens_d': d_a},
+    ]
+    stats_df = pd.DataFrame(stats_rows)
+    stats_df['significant_0.05'] = stats_df['p_value'] < 0.05
+    stats_fn = os.path.join(RESULTS_PUBLIC, 'manifold_stability_stats.csv')
+    stats_df.to_csv(stats_fn, index=False)
+    print(f'Saved statistics to {stats_fn}')
 
     fig, ax = plt.subplots(1, 2, figsize=(3, 4), sharey=False)
 

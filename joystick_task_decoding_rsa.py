@@ -17,23 +17,34 @@ from config import *
 
 RESULTS_PUBLIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'results_public')
 PLOTS_DIR      = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'plots')
-JOY_FILE       = os.path.join(RESULTS_PUBLIC, 'joystick_decoding_results_final.csv')
+# Prefer new output from run_joystick_analyses.py; fall back to legacy file
+_NEW_JOY_FILE  = os.path.join(INTERMEDIATE_RESULTS_PATH,
+                               'joystick_figure1_himalaya_run_cross_validation.csv')
+_OLD_JOY_FILE  = os.path.join(RESULTS_PUBLIC, 'joystick_decoding_results_final.csv')
 
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
-if not os.path.isfile(JOY_FILE):
-    print(f'Joystick results file not found: {JOY_FILE}')
-    print('Run joystick_decoding.py first to generate results.')
+if os.path.isfile(_NEW_JOY_FILE):
+    _joy_fn, _new_format = _NEW_JOY_FILE, True
+elif os.path.isfile(_OLD_JOY_FILE):
+    _joy_fn, _new_format = _OLD_JOY_FILE, False
+else:
+    print('No joystick results file found.')
+    print(f'Run run_joystick_analyses.py first to generate results.')
     raise SystemExit(0)
 
 # ── Load and reshape ──────────────────────────────────────────────────────────
 
 sns.set_context(context_params)
 
-raw = pd.read_csv(JOY_FILE, index_col=0).reset_index()
-raw.columns = raw.columns.str.strip()
-# index was embedding_type; after reset it is a column
-raw = raw.rename(columns={raw.columns[0]: 'embedding_type'})
+if _new_format:
+    # New file: numeric index, embedding_type already a column
+    raw = pd.read_csv(_joy_fn, index_col=0)
+else:
+    # Legacy file: embedding_type was the index
+    raw = pd.read_csv(_joy_fn, index_col=0).reset_index()
+    raw.columns = raw.columns.str.strip()
+    raw = raw.rename(columns={raw.columns[0]: 'embedding_type'})
 
 # Keep voxel vs T-PHATE, metrics MSE (himalaya) and mantel z-score
 raw = raw[raw['embedding_type'].isin(['voxel', 'tphate']) &
@@ -77,6 +88,8 @@ yplus    = [0.5, 2]          # y-offset for significance annotation
 
 np.random.seed(SEED)
 
+all_stats = []
+
 for i, (yname, ylabel, yoff) in enumerate(zip(ynames, ylabels, yplus)):
     fig, ax = plt.subplots(1, 1, figsize=(3, 3))
 
@@ -100,13 +113,27 @@ for i, (yname, ylabel, yoff) in enumerate(zip(ynames, ylabels, yplus)):
     arr0, arr1 = np.array(points0), np.array(points1)
     _, pv, _ = helper.permutation_test(
         np.array([arr0, arr1]), n_iterations=10000, alternative='two-sided')
-    m_diff, lo_d, hi_d = helper.bootstrap_ci(arr0 - arr1, n_boot=10000)
-    d_paired           = helper.cohens_d_paired(arr0 - arr1)  
+    m0, lo0, hi0, _       = helper.bootstrap_ci(arr0, n_boot=10000, verbose=0)
+    m1, lo1, hi1, _       = helper.bootstrap_ci(arr1, n_boot=10000, verbose=0)
+    m_diff, lo_d, hi_d, _ = helper.bootstrap_ci(arr0 - arr1, n_boot=10000, verbose=0)
+    d_paired               = helper.cohens_d_paired(arr0 - arr1, verbose=0)
+    print(f'{yname}  voxel:  mean={m0:.4f}  95%CI=[{lo0:.4f},{hi0:.4f}]')
+    print(f'{yname}  T-PHATE:  mean={m1:.4f}  95%CI=[{lo1:.4f},{hi1:.4f}]')
     print(f'{yname}  voxel−T-PHATE:  mean={m_diff:.4f}  p={pv:.4f}  95%CI=[{lo_d:.4f},{hi_d:.4f}]  Cohen\'s d={d_paired:.4f}')
-    if pv > 0.5:
-        pv = 1 - pv
+    pv_plot = pv
+    if pv_plot > 0.5:
+        pv_plot = 1 - pv_plot
 
-    pstr = determine_symbol(pv)
+    pstr = determine_symbol(pv_plot)
+    all_stats.append({
+        'comparison': f'{yname}: voxel vs T-PHATE',
+        'test': 'permutation_test (n_iter=10000, alternative=two-sided)',
+        'group1': 'voxel', 'group2': 'T-PHATE',
+        'n1': len(arr0), 'n2': len(arr1),
+        'mean1': m0, 'mean2': m1,
+        'p_value': pv, 'ci_lower': lo_d, 'ci_upper': hi_d,
+        'cohens_d': d_paired,
+    })
     yloc = np.max(np.concatenate((points0, points1))) + yoff
 
     if pstr is not None:
@@ -120,6 +147,12 @@ for i, (yname, ylabel, yoff) in enumerate(zip(ynames, ylabels, yplus)):
                 transparent=True, bbox_inches='tight', format='pdf')
     # plt.show()
     print()
+
+stats_df = pd.DataFrame(all_stats)
+stats_df['significant_0.05'] = stats_df['p_value'] < 0.05
+stats_fn = os.path.join(RESULTS_PUBLIC, 'joystick_stats.csv')
+stats_df.to_csv(stats_fn, index=False)
+print(f'Saved statistics to {stats_fn}')
 
 print(f'\nPlots saved to {PLOTS_DIR}')
 print('Joystick results complete.')

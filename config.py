@@ -1,4 +1,4 @@
-# contains important variables for analyses
+# contains important variables for experiment and analyses
 import os, sys, glob
 import numpy as np
 
@@ -9,15 +9,13 @@ DATA_PATH = os.path.expanduser('~/Desktop/BCI/avatarRT_dryad/avatarRT_subject_da
 SCRATCH_PATH = os.path.join(_SCRIPT_DIR, 'results', 'scratch')
 INTERMEDIATE_RESULTS_PATH = os.path.join(_SCRIPT_DIR, 'results', 'intermediate_results')
 FINAL_RESULTS_PATH = os.path.join(_SCRIPT_DIR, 'results', 'final_results')
-
 SESSION_TRACKER = os.path.join(DATA_PATH, 'session_tracker.csv')
-
 SUB_NUMBERS = np.arange(5, 26)
 SUB_NUMBERS = SUB_NUMBERS[SUB_NUMBERS!=12] # 12 dropped out
 SUB_IDS = [f'avatarRT_sub_{s:02d}' for s in SUB_NUMBERS]
 WM_first = [5,7,9,11,13,15,17,19,21,23,24]
 WM_FIRST = [f'avatarRT_sub_{s:02d}' for s in WM_first] # subjects who received WMP before OMP
-exclude_from_neural_analyses = [12,9,20] # 12 dropped, 9 had scanner issue, 20 fell asleep
+exclude_from_neural_analyses = [12,9,20] # 12 dropped, 9&20 had issues
 
 # Simulated subject codes
 CODES=['AA','BB','CC','DD','EE','GG','HH','JJ','KK','MM','NN','PP','QQ','SS','TT','VV','WW','XX','YY','ZZ']
@@ -30,17 +28,18 @@ ORDER=['IM','WMP','OMP']
 SLRAD=3
 SHIFTBY=2
 SEED=44
-REGRESSOR_VERSION='regressors_1024'
+REGRESSOR_VERSION='labels'
 CALIB_TR=10 # number of calibration TRs excluded from the beginning of each run
 NPERM=1000
 ALPHAS = 10.**np.arange(-2, 20, 1)
 VERBOSE=1
 
-BEHAV_TRIALSERIES = f'{FINAL_RESULTS_PATH}/behavioral_change_trialseries.csv'
-BEHAV_SESSION_RES = f'{FINAL_RESULTS_PATH}/behavioral_change_session.csv'
-BEHAV_TRIAL_W_SIM = f'{FINAL_RESULTS_PATH}/behavioral_change_trialseries_with_simulations.csv'
-BEHAV_SESSION_W_SIM = f'{FINAL_RESULTS_PATH}/behavioral_change_runwise_with_simulations.csv'
+BEHAV_TRIALSERIES = f'behavioral_change_trialseries.csv'
+BEHAV_SESSION_RES = f'behavioral_change_session.csv'
+BEHAV_TRIAL_W_SIM = f'behavioral_change_trialseries_with_simulations.csv'
+BEHAV_SESSION_W_SIM = f'behavioral_change_runwise_with_simulations.csv'
 
+RESULTS_SOURCE = f'{FINAL_RESULTS_PATH}/runwise_neural_variance_control.csv'
 
 colors_main = {'OMP': '#5C940D', 'WMP': '#2E8A82', 'IM': '#00356b'}
 colors_sim = {'OMP': '#BCDC8F', 'WMP': '#9ACCD5', 'IM': '#618EBC'}

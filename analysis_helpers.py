@@ -18,6 +18,7 @@ import tphate
 ######## functions pertaining to getting experiment information
 
 def flatten_trials(trials):
+    '''takes a vector of trial numbers and flattens it so that if trial numbers reset (across runs), the next trial is the max of the previous trials + 1'''
     trials1 = trials.copy()
     diffs = np.where(np.diff(trials)<0)[0]
     for i, d in enumerate(diffs):
@@ -28,16 +29,18 @@ def flatten_trials(trials):
     return trials1
 
 def format_subid(subject_number):
+    '''formats subject number into the string format used for filepaths'''
     try: sub=f'avatarRT_sub_{subject_number:02d}'
     except: sub=f'avatarRT_sub_{subject_number}'
     return sub
 
 def get_perturbation_info(subject_id, session_id, run, return_component=False):
+    '''returns the type of perturbation for a given run, and optionally the component number'''
     if run == 1: 
         if return_component: return 'IM', 0
         else: return 'IM'
     
-    df = pd.read_csv(f'{PROJECT_PATH}/offline_analyses/info/session_tracker_amended.csv')
+    df = pd.read_csv(SESSION_TRACKER)
     sub_num = str(int(subject_id.split('_')[-1]))
     ses_num = int(session_id.split('_')[-1])
     row = df[df['subject_number'] == sub_num]
@@ -54,14 +57,18 @@ def get_perturbation_info(subject_id, session_id, run, return_component=False):
     return perturb_type, comp
 
 def load_info_file():
-	return pd.read_csv(f'{SESSION_TRACKER}')
+    '''returns the session tracker file, which contains information about the experimental conditions for each run of each subject'''
+    return pd.read_csv(f'{SESSION_TRACKER}')
 
 def get_success_rate_file(subject_id):
-	df = pd.read_csv(f'{DATA_PATH}/{subject_id}/results/success_rates.csv')
-	df['brain_control']=1-df['game_control']
-	return df
+    '''returns the success rates file for a given subject, which contains trial-level information about performance'''
+    
+    df = pd.read_csv(f'{DATA_PATH}/{subject_id}/results/success_rates.csv')
+    df['brain_control'] = 1 - df['game_control']
+    return df
 
 def get_brain_control_from_success_file(df, session, run, trial=None):
+    '''returns the brain control success rate for a given session, run, and optionally trial(s) from the success rates file'''
     if trial!=None:
         row = df[(df['session_number']==session) & (df['run_number']==run) & (df['round_number'].isin(trial))]
         return row.brain_control.values, row.index
@@ -70,10 +77,30 @@ def get_brain_control_from_success_file(df, session, run, trial=None):
 
 ######### ######### ######### data processing & statistics ######### ######### #########  
 
-def bootstrap_ci(data, n_boot=10000, ci=95, seed=4):
+def bootstrap_ci(data, n_boot=10000, ci=95, seed=4, verbose=1):
+    '''
+    computes a bootstrap confidence interval for the mean of the input data, with options for paired data and verbosity
+
+    parameters
+    ----------
+    data: 1D array of data points, or 2D array where the first dimension is paired samples (e.g. pre/post for each subject)
+    n_boot: number of bootstrap samples to compute
+    ci: confidence interval to compute (e.g. 95 for 95% CI)
+    seed: random seed for reproducibility
+    verbose: whether to print the results
+
+    returns
+    -------
+    mean, lower bound of CI, upper bound of CI, standard error of the mean
+
+    
+    '''
+
     rng = np.random.default_rng(seed)
     # check if data is 2D - compute difference if so
     if data.ndim == 2:
+        if data.shape[1] != 2: # make sure the first dimension is the paired one
+            data = data.T
         data = data[:,0] - data[:,1]
 
     means = np.array([
@@ -82,21 +109,89 @@ def bootstrap_ci(data, n_boot=10000, ci=95, seed=4):
     ])
     lower = np.percentile(means, (100 - ci) / 2)
     upper = np.percentile(means, 100 - (100 - ci) / 2)
-    return np.mean(data), lower, upper
+    sem = np.std(data, ddof=1) / np.sqrt(len(data))
+    if verbose:
+        # compute standard error of the mean
+        print(f"mean = {np.mean(data):.3f}, sem: {sem:.3f}, {ci}% confidence interval: [{lower:.3f}, {upper:.3f}]")
+    return np.mean(data), lower, upper, sem
 
-def cohens_d_paired(diffs):
-    return np.mean(diffs) / np.std(diffs, ddof=1)
-
-def permutation_test(data, n_iterations, alternative='greater'):
+def cohens_d_paired(data, verbose=1):
+    '''
+    computes Cohen's d for paired data, with an option for verbosity
+    measure of effect size for the mean difference between two paired samples, standardized by the standard deviation of the differences
     
-    np.random.seed(SEED)
-    random.seed(SEED)
+    parameters
+    ----------
+    data: 1D array of data points, or 2D array where the first dimension is paired samples (e.g. pre/post for each subject)
+    verbose: whether to print the results
+    
+    returns
+    -------
+    Cohen's d value for the input data ()
+    '''
+
+    # check if data is 2D - compute difference if so
+    if data.ndim == 2:
+        if data.shape[1] != 2: # make sure the first dimension is the paired one
+            data = data.T
+        data = data[:,0] - data[:,1]
+    d = np.mean(data) / np.std(data, ddof=1)
+    if verbose:
+        print(f"Cohen's d: {d:.3f}")
+    return d
+
+def cohens_d_independent(group1, group2, verbose=1):
+    '''computes Cohen's d for independent groups, with an option for verbosity
+    measure of effect size for the mean difference between two independent groups, standardized by the pooled standard deviation
+    
+    parameters
+    ----------
+    group1: 1D array of data points for group 1
+    group2: 1D array of data points for group 2
+    verbose: whether to print the results
+    
+    returns
+    -------
+    Cohen's d value for the input data
+    '''
+
+    n1=len(group1)
+    n2=len(group2)
+    # sample variances
+    s1_sq = np.var(group1, ddof=1)
+    s2_sq = np.var(group2, ddof=1)
+    # pooled standard deviation
+    pooled_sd = np.sqrt(((n1 - 1) * s1_sq + (n2 - 1) * s2_sq) / (n1 + n2 - 2))
+    # means
+    u1 = np.mean(group1)
+    u2 = np.mean(group2)
+    # Cohen's d    d = (u1 - u2) / pooled_sd
+    d = (u1 - u2) / pooled_sd
+    if verbose:
+        print(f"Cohen's d: {d:.3f}")
+    return d
+
+def permutation_test(data, n_iterations, alternative='greater', seed=4):
     
     """
-    permutation test for comparing the means of two distributions 
+    randomization test for comparing the means of two distributions 
     where the samples between the two distributions are paired
     
+    parameters
+    ----------
+    data: 1D array of data points, or 2D array where the first dimension is paired samples (e.g. pre/post for each subject)
+    n_iterations: number of permutations to compute
+    alternative: type of comparison to perform - 'less', 'greater', or 'two-sided'
+    seed: random seed for reproducibility
+
+    returns
+    -------
+    observed mean difference, p-value for the comparison, null distribution of mean differences from permutations
+    
     """
+    np.random.seed(seed)
+    random.seed(seed)
+    
     
     def less(null_distribution, observed):
         cmps = null_distribution <= observed + gamma
@@ -116,7 +211,10 @@ def permutation_test(data, n_iterations, alternative='greater'):
     
     compare = {'less': less, 'greater': greater, 'two-sided': two_sided}
     n_samples = data.shape[1]
-    observed_difference = data[0] - data[1]
+    if data.ndim == 2:
+        observed_difference = data[0] - data[1]
+    else:
+        observed_difference = data
     observed = np.mean(observed_difference)
     null_distribution = np.empty(n_iterations)
     for i in range(n_iterations):
@@ -128,16 +226,20 @@ def permutation_test(data, n_iterations, alternative='greater'):
     return observed, pvalue, null_distribution
 
 def normalize(X, axis=0):
-	# normalize function for standard implementation across scripts
+    # normalize function for standard implementation across scripts/analyses
     X = zscore(X, axis=axis)
     return np.nan_to_num(X)
 
 def run_EVR(X_transformed):
+    
+    # Compute the explained variance ratio for each component in the transformed data
+
     X_var = np.var(X_transformed, axis=0)
     evr = X_var / np.sum(X_var)
     return np.array(evr)
 
 def compute_total_variance(X_transformed):
+    # compute the total variance in the transformed data (sum of variances across components)
     return np.var(X_transformed, axis=0)
 
 def embed_tphate(X, t=5, n_components=2):
@@ -147,7 +249,7 @@ def embed_tphate(X, t=5, n_components=2):
 ####### functions for wrangling data
 
 def extract_data_from_df(dataframe, filter_columns, filter_values, statistic=None, return_index=False):
-    ## takes a dataframe, filters columns to specific values, returns statistics
+    ## takes a dataframe, filters columns to specific values, returns values matching statistics
     indices = []
     for c,v in zip(filter_columns, filter_values):
         if type(v) == str:
@@ -162,17 +264,19 @@ def extract_data_from_df(dataframe, filter_columns, filter_values, statistic=Non
     return dataframe.iloc[overlap_indices].reset_index() 
 
 def aggregate_files(to_match, output_fn):
+    '''takes a glob pattern to match files, concatenates those files into a single dataframe, and saves that dataframe to a new csv'''
     fns = sorted(glob.glob(to_match))
     df=pd.concat([pd.read_csv(f,index_col=0) for f in fns])
     try:
         df.drop(labels=['index'],axis=1,inplace=True)
     except:
-        if VERBOSE: print(df.columns, 'boop')
+        if VERBOSE: print(df.columns)
     df.reset_index(drop=True).to_csv(output_fn)
     if VERBOSE: print(f'saved to {output_fn}')
     return df
 
 def shift_timing(nTRs_data, label_TR, TR_shift_size, start_label=0):
+    '''shifts a vector of labels by a specified number of TRs, padding the beginning with a specified start label, and trimming the end if necessary to match the length of the fmri data'''
     toTrimData=0
     # Create a short vector of extra values - whatever you want
     start_shift = np.ones((TR_shift_size,)) * start_label
@@ -204,12 +308,12 @@ def get_trial_data(X, subject_id, session_id, run, shift_by=2):
     
     while len(trial_OnOff_shifted) > len(reg_df):
         reg_df.loc[len(reg_df)] = {"TR":len(reg_df)+1, "TR_0idx":len(reg_df),  "trial":np.nan,  "isTrial":0}
-        if VERBOSE: print('appending to reg df')
+        #if VERBOSE: print('appending to reg df')
 
     while len(trial_OnOff_shifted) < len(reg_df):
         trial_OnOff_shifted = np.append(trial_OnOff_shifted,[0])
         trial_label_shifted = np.append(trial_label_shifted,[-1])
-        if VERBOSE: print('appending to labels ')
+        #if VERBOSE: print('appending to labels ')
 
     reg_df['TR-0idx'] = reg_df['TR_0idx'] 
     reg_df['isTrial_shifted'] = trial_OnOff_shifted
@@ -224,7 +328,7 @@ def get_trial_data(X, subject_id, session_id, run, shift_by=2):
         d = X[trs_in_trial]
         if d.shape[0] < 2:  continue
         data_by_trial[trial] = d
-    if VERBOSE: print(f"After getting trial data, found {len(trial_numbers)} trials, data shape: {len(data_by_trial)}, Xshape: {X.shape}")
+    #if VERBOSE: print(f"After getting trial data, found {len(trial_numbers)} trials, data shape: {len(data_by_trial)}, Xshape: {X.shape}")
     return data_by_trial
 
 def normalize_within_trial(X, trial_labels):
@@ -233,6 +337,7 @@ def normalize_within_trial(X, trial_labels):
     return np.concatenate(X_listed)
 
 def list_by_trial(X, trial_labels, normalize):
+    '''takes a data matrix and a vector of trial labels, and returns a list of data matrices for each trial, optionally normalizing within each trial'''
     X_list=[]
     for t in sorted(np.unique(trial_labels)):
         if t == -1: 
@@ -265,15 +370,14 @@ def get_realtime_outdata(subject_id, session_id, run_number, data_type=None):
     return to_return
 
 def get_realtime_data_preprocesssed(subject_id, session_id, run, data_type=None):
-	# offline preprocessing of real time data
+    # offline preprocessing of real time data
     return np.load(f"{DATA_PATH}/{subject_id}/{session_id}/data_rt_offline_preproc/{subject_id}_run_{run:02d}_masked_data_v2.npy")
 
-def load_vol_data(subject_id, session_id, run_ID, space='standard', asarray=False, normalize=True):
+def load_vol_data(subject_id, session_id, run_ID, space='native', asarray=False, normalize=True):
     task = 'RT'
     root = f'{DATA_PATH}/{subject_id}/{session_id}/func/{subject_id}_task-{task}_run-{run_ID:02d}'
     if session_id == 'ses_01': task='joystick'
-    if space == 'standard': tail = '_bold_preproc_v2_denoised_MNI152_2mm.nii.gz'
-    elif space == 'native': tail = '_bold_preproc_v2_denoised_native.nii.gz'
+    if space == 'native': tail = '_bold_preproc_v2_denoised_native.nii.gz'
     elif space == 'fmriprep': tail = '_space-MNI152Lin_desc-preproc_fmriprep_bold.nii.gz'
     else: tail = '_bold.nii'
     fn = f'{root}{tail}'
@@ -312,7 +416,7 @@ def calculate_nfb_component_loadings(subject_id, session_id, run, component_numb
         X_proj = this_mrae.extract_projection_to_manifold(X)
         X_mapped = map_projection(X_proj, NFB_component)
     else:
-        this_mrae, _, _, _ = load_model_from_dir(modelPath, perturbation=1, verbose=0)
+        this_mrae, _, _, _ = load_model_from_dir(modelPath, perturbation=-1, verbose=0)
         X_proj = this_mrae.extract_projection_to_manifold(X)
         components = get_manifold_component(this_mrae.manifold_regularization)
         X_mapped = map_projection(X_proj, components)
@@ -353,12 +457,21 @@ def load_model_from_dir(modelPath, perturbation=0, verbose=False):
 
     else:
         if verbose: print(f"Loading off-manifold perturbation; component={perturbation}")
-        MANI_COMP = np.load(f'{modelPath}/manifold_pc_{perturbation:02d}.npy') 
-        TEST_RANGE = np.load(f'{modelPath}/test_range_{perturbation:02d}.npy') 
+        try:
+            MANI_COMP = np.load(f'{modelPath}/manifold_pc_{perturbation:02d}.npy') 
+            TEST_RANGE = np.load(f'{modelPath}/test_range_{perturbation:02d}.npy') 
+            
+        except:
+            # print(f"Could not find files for perturbation {perturbation}, defaulting to NONE")
+            MANI_COMP = None
+            TEST_RANGE = None
+    if TEST_RANGE is not None:
+        # this file contains the 1st and 99th percentile loadings of val data onto the pc of the AE bottleneck layer
+        # get the slope and intercept for the mapping from manifold component to direction
+        MAPPING_SLOPE, MAPPING_INTERCEPT = np.polyfit(TEST_RANGE, [-1, 1], 1)
+    else:
+        MAPPING_SLOPE, MAPPING_INTERCEPT = None, None
     
-    # this file contains the 1st and 99th percentile loadings of val data onto the pc of the AE bottleneck layer
-    # get the slope and intercept for the mapping from manifold component to direction
-    MAPPING_SLOPE, MAPPING_INTERCEPT = np.polyfit(TEST_RANGE, [-1, 1], 1)
     # set the mapping function
     with open(modelSpec, 'r') as f:
         modelParams = json.load(f)
@@ -373,11 +486,11 @@ def load_model_from_dir(modelPath, perturbation=0, verbose=False):
 
 
 def load_joystick_task_location_labels(subject_id, run, nTRs_data, shift_by=2):
-    reg_df = pd.read_csv(f'{DATA_PATH}/{subject_id}/regressors/{subject_id}_ses_01_run_{run:02d}_timeseries_regressors.csv')
+    reg_df = pd.read_csv(f'{DATA_PATH}/{subject_id}/labels/{subject_id}_ses_01_run_{run:02d}_timeseries_regressors.csv')
     trial_OnOff = reg_df['isTrial'].values
     trial_numbers = reg_df['trial'].values
-    xvalues = reg_df['x'].values
-    zvalues = reg_df['z'].values
+    xvalues = reg_df['x_coord_norm'].values
+    zvalues = reg_df['z_coord_norm'].values
     trial_numbers_shifted, toTrim = shift_timing(nTRs_data, trial_numbers, shift_by, start_label=-1)
     xvalues_shifted,_ = shift_timing(nTRs_data, xvalues, shift_by, start_label=0)
     zvalues_shifted,_ = shift_timing(nTRs_data, zvalues, shift_by, start_label=0)

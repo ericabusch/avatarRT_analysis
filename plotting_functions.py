@@ -121,6 +121,87 @@ def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.
     else:
         return fig,ax
 
+def make_barplot_points_precomputed(dataframe, yname, xname,
+                                    pvals_vs_0, pvals_pairwise,
+                                    exclude_subs=[], ylim=[-0.04, 0.06],
+                                    outfn=None, title='',
+                                    plus_bot=0.04, plus_top=0.07,
+                                    lines=True, ylabel=None, xlabel=None):
+    """Bar plot with individual subject points using precomputed p-values.
+
+    Parameters
+    ----------
+    pvals_vs_0 : list of 3 floats
+        [p_IM_vs_0, p_WMP_vs_0, p_OMP_vs_0]
+    pvals_pairwise : list of 3 floats
+        [p_IM_vs_WMP, p_IM_vs_OMP, p_WMP_vs_OMP]
+    """
+    np.random.seed(10)
+    if (len(exclude_subs) == 1) and (exclude_subs[0] == 'simulation'):
+        include = SIMULATED_SUBS
+        cmap = colors_sim
+    else:
+        include = np.arange(5, 26)
+        include = [i for i in include if i not in exclude_subs]
+        include = [helper.format_subid(i) for i in include]
+        cmap = colors_main
+
+    if not ylabel: ylabel = yname
+    if not xlabel: xlabel = xname
+
+    order = ['IM', 'WMP', 'OMP']
+    d = dataframe[dataframe['subject_id'].isin(include)]
+
+    pstrs = [determine_symbol(p) for p in pvals_vs_0] + [determine_symbol(p) for p in pvals_pairwise]
+
+    fig, ax = plt.subplots(figsize=(4, 4))
+    sns.barplot(data=d, x=xname, y=yname, palette=[cmap[i] for i in order], order=order,
+                errorbar=None, edgecolor='k', errcolor='black', errwidth=3, alpha=0.85, ax=ax)
+    ax.axhline(0, ls='--', c='k')
+    xlocs = [0, 1, 2]
+    points0, points1, points2 = [], [], []
+    for subj in include:
+        try:
+            point0 = d[(d['subject_id'] == subj) & (d[xname] == 'IM')][yname].item()
+            point1 = d[(d['subject_id'] == subj) & (d[xname] == 'WMP')][yname].item()
+            point2 = d[(d['subject_id'] == subj) & (d[xname] == 'OMP')][yname].item()
+        except:
+            print(subj)
+            continue
+        ax.scatter(xlocs, [point0, point1, point2], c=[colors_sim[i] for i in order],
+                   edgecolors='k', zorder=10, linewidths=1, s=30)
+        points0.append(point0)
+        points1.append(point1)
+        points2.append(point2)
+        if lines:
+            ax.plot(xlocs, [point0, point1, point2], color='k', alpha=0.36, linewidth=0.4)
+
+    # significance above bars (vs 0)
+    xloc_mids = [-0.12, 0.9, 1.9]
+    yloc_bar = np.max(np.concatenate([points0, points1, points2])) + 0.004
+    for i in range(3):
+        if pstrs[i] is not None:
+            plt.text(x=xloc_mids[i], y=yloc_bar, s=pstrs[i], size=12)
+
+    # pairwise significance brackets
+    xrel_mids = [0.4, 1, 1.4]
+    line_xranges = [[0.2, 0.45], [0.2, 0.8], [0.55, 0.8]]
+    line_y = [yloc_bar + plus_bot, yloc_bar + plus_top, yloc_bar + plus_bot]
+    for i in range(3):
+        if pstrs[i + 3] is not None:
+            plt.axhline(y=line_y[i], xmin=line_xranges[i][0], xmax=line_xranges[i][1], color='k', lw=1)
+            plt.text(x=xrel_mids[i], y=line_y[i], s=pstrs[i + 3], size=12)
+
+    ax.set_xticklabels(['IM', 'WMP', 'OMP'])
+    ax.set(ylim=ylim, title=title, xlabel=xlabel, ylabel=ylabel)
+    sns.despine()
+    if outfn is not None:
+        plt.savefig(outfn, transparent=True, bbox_inches='tight')
+        plt.close()
+    else:
+        return fig, ax
+
+
 def make_barplot_errorbar(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.06], outfn=None, title='',plus_bot=0.04, plus_top=0.07, n_iter=1000, signif=False, sample_alternative='greater',pairwise_alternative='greater'):
     ## already filter the dataframe to give it just the data necessary - the version you are running or whatever
     # so only have to select the yname

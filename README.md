@@ -1,5 +1,5 @@
 # avatarRT_analysis
-*updated March 2026, ELB, with supplemental analyses after revision*
+*updated April 2026, ELB, with supplemental analyses after revision & acceptance at Nature Neuroscience*
 
 This repository contains the analysis scripts for a real-time fMRI experiment testing neural manifold constraints on learning.
 
@@ -7,8 +7,14 @@ This repository contains the analysis scripts for a real-time fMRI experiment te
 
 ## Environment
 
-All scripts require the `rtcloud_av1` conda environment:
+All scripts require the `rtcloud_av1` conda environment. Change the final line of the provided file `environment.yml` to match your own conda installation and then build this environment using:
 
+```bash
+cd /path/to/avatarRT_analysis
+conda env create -f environment.yml
+```
+
+then activate with
 ```bash
 conda activate rtcloud_av1
 # Interpreter: /Users/elb/miniconda3/envs/rtcloud_av1/bin/python
@@ -26,11 +32,11 @@ python behavioral_results.py
 | Package | Purpose | Notes |
 |---|---|---|
 | `nibabel` | Load NIfTI mask files | Standard conda install |
-| `ot` (POT) | Gromov-Wasserstein distances | `pip install POT` |
-| `TPHATE` | T-PHATE manifold embedding | Local package in `TPHATE/` subdirectory |
-| `MRAE` | Neural manifold model (bottleneck encoder) | Local package in `MRAE/` subdirectory — install with `pip install -e MRAE/` |
-| `statsmodels` | OLS / ANOVA for order effects | Standard conda install |
+| `TPHATE` | T-PHATE manifold embedding | Pip install -- `pip install tphate`|
+| `MRAE` | Manifold regularized autoencoder | Local package in `MRAE/` subdirectory — install with `pip install -e MRAE/` |
+| `statsmodels` | OLS / ANOVA | Standard conda install |
 | `himalaya` | Ridge regression (location decoding) | `pip install himalaya` |
+| `ot` (POT) | Gromov-Wasserstein distances | `pip install POT` |
 
 ---
 
@@ -68,18 +74,18 @@ Scripts write output to `results/` (created automatically):
 
 ```
 results/
-  results_public/       # CSVs shared as supplementary data
-  final_results/        # final per-subject summary CSVs (some pre-computed)
+  results_public/       # xlsx files shared as source data with publication
+  final_results/        # final per-subject summary CSVs 
   intermediate_results/ # intermediate cached computations
-  plots/                # all PDF figures
-  scratch/              # temporary cached embeddings
+  plots/                # PDF figures output
+  scratch/              # temporary cached embeddings / npys 
 ```
 
 ---
 
 ## Statistical approach
 
-All within-subjects comparisons use **nonparametric paired permutation tests** (10,000 iterations) via `helper.permutation_test`. Confidence intervals for vs-0 tests are computed with `helper.bootstrap_ci` (10,000 bootstrap samples). Between-subjects group comparisons (for real and simulated groups) use `scipy.stats.ttest_ind(permutations=10000)`.
+All within-subjects comparisons use **nonparametric paired randomization tests** (10,000 iterations) via `helper.permutation_test`. Confidence intervals are computed with `helper.bootstrap_ci` (10,000 bootstrap samples). Between-subjects group comparisons (for real and simulated groups) use `scipy.stats.ttest_ind(permutations=10000)`. OLS models and ANOVAs are implemented with `statsmodels`.
 
 ---
 
