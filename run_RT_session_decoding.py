@@ -22,22 +22,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 import analysis_helpers as helper
-from config import (SUB_NUMBERS, INTERMEDIATE_RESULTS_PATH, FINAL_RESULTS_PATH,
-                    VERBOSE, NPERM, SEED, context_params, colors_main, exclude_from_neural_analyses)
+from config import (SUB_NUMBERS, INTERMEDIATE_RESULTS_PATH, FINAL_RESULTS_PATH, PLOTS_PATH,
+                    VERBOSE, NPERM, SEED, context_params, colors_main, exclude_from_neural_analyses, NBOOT)
 from plotting_functions import determine_symbol, make_barplot_points_precomputed
 from decoding_utils import (
     load_RT_data_package,
     get_session_ids,
     select_cv_and_reg_funcs,
 )
-
-os.makedirs(INTERMEDIATE_RESULTS_PATH, exist_ok=True)
-os.makedirs(FINAL_RESULTS_PATH, exist_ok=True)
-PLOTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'plots')
-os.makedirs(PLOTS_DIR, exist_ok=True)
-
-N_BOOT = 10000
-
 
 # ---------------------------------------------------------------------------
 # within-session LORO cross-validation
@@ -89,7 +81,7 @@ def within_session_decoding(subject_id, regression_function='himalaya'):
 # Statistics: within-session pairwise comparisons
 # ---------------------------------------------------------------------------
 
-def compute_within_session_stats(df, n_boot=N_BOOT, out_fn=None):
+def compute_within_session_stats(df, n_boot=NBOOT, out_fn=None):
     """
     Pairwise comparisons of within-session MSE across all session-type pairs
     (IM vs WMP, IM vs OMP, WMP vs OMP).
@@ -166,10 +158,9 @@ def compute_within_session_stats(df, n_boot=N_BOOT, out_fn=None):
 # Plotting
 # ---------------------------------------------------------------------------
 
-def plot_within_session(df, plots_dir=None):
+def plot_within_session(df, plots_dir=PLOTS_PATH):
     """Bar + subject-points plot of within-session MSE for IM, WMP, OMP."""
-    if plots_dir is None:
-        plots_dir = PLOTS_DIR
+    
     os.makedirs(plots_dir, exist_ok=True)
     sns.set_context(context_params)
     np.random.seed(SEED)
@@ -241,12 +232,6 @@ def run_within_all(subjects, regression_function='himalaya', n_jobs=16,
 
     return df
 
-
-
-
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

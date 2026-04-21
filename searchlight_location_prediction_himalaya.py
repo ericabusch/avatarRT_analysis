@@ -7,7 +7,6 @@ import argparse
 from mpi4py import MPI
 import pickle
 import matplotlib.pyplot as plt
-import avatarRT_utils as utils
 import inspect, subprocess
 from numpy import linalg
 from scipy import stats
@@ -30,16 +29,15 @@ from sklearn.model_selection import PredefinedSplit
 
 
 def load_brain_data(subject_id, session_id, run, mask_file=None, normalize=True, subsample_mask=False):
-    nii = utils.load_vol_data(subject_id, session_id, run, space='standard', asarray=False)
+    nii = helper.load_vol_data(subject_id, session_id, run, space='fmriprep', asarray=False)
     bold_data = nii.get_fdata()
-    bold_data = np.nan_to_num(utils.normalize(bold_data, axis=-1))
+    bold_data = np.nan_to_num(helper.normalize(bold_data, axis=-1))
     dims = nii.header.get_zooms()
     affine=nii.affine
     if mask_file == None:
         brain_mask,_,_=get_mask(subsample_mask=subsample_mask)
     else:
         brain_mask=nib.load(mask_file).get_fdata()
-
     return bold_data, brain_mask, affine, dims
 
 def get_mask(subsample_mask=False):
@@ -55,7 +53,7 @@ def get_mask(subsample_mask=False):
 
 
 def get_num_trials(subject_id, session_id, run):
-    reg_df = pd.read_csv(f'{utils.data_path}/{subject_id}/regressors/{subject_id}_{session_id}_run_{run:02d}_timeseries_regressors.csv', index_col=0)
+    reg_df = pd.read_csv(f'{DATA_PATH}/{subject_id}/{REGRESSOR_VERSION}/{subject_id}_{session_id}_run_{run:02d}_timeseries_regressors.csv', index_col=0)
     trial_numbers = reg_df['trial'].values
     return len(np.unique(trial_numbers))-1
 
@@ -176,7 +174,6 @@ if __name__ == '__main__':
 
     subject_id=p.subject_id
     session_id = f'ses_{p.session_number:02d}'
-    ALPHAS = 10.**np.arange(-2, 20, 1)
     #run_numbers = [1,2,3,4]
     #if p.session_number > 2: run_numbers=[2,3,4]
     run_numbers = [2,4]
@@ -185,7 +182,7 @@ if __name__ == '__main__':
     elif p.session_number == 2:
         run_numbers = [1,2,4]
     sl = Searchlight(sl_rad=p.sl_rad, max_blk_edge=max_blk_edge,min_active_voxels_proportion=0.8)
-    subjPath=f'{utils.project_path}/experiment/subjects/{subject_id}'
+    subjPath=f'{DATA_PATH}/{subject_id}'
     os.makedirs(subjPath+'/results/searchlight',exist_ok=True)
     FSLDIR='/gpfs/milgram/apps/hpc.rhel7/software/FSL/6.0.5-centos7_64'
     MASK_FILE=  f'{FSLDIR}/data/linearMNI/MNI152lin_T1_2mm_brain_mask.nii.gz'
@@ -193,7 +190,7 @@ if __name__ == '__main__':
     INTERSECT_MASK=f'{subjPath}/masks/{subject_id}_{session_id}_intersect_mask.nii.gz'
     if p.test==1:
         if p.verbose: print('using test mask')
-        INTERSECT_MASK=f'/gpfs/milgram/project/turk-browne/users/elb77/BCI/rt-cloud/projects/avatarRT/offline_analyses/TEST_MASK.nii.gz'
+        INTERSECT_MASK=f'./TEST_MASK.nii.gz' # This is just a few voxels for debugging
     FAILED_STACK=0
     run_mean_results = []
     mask,affine,dimsize=get_mask()
@@ -206,19 +203,18 @@ if __name__ == '__main__':
     mask,affine,dimsize=get_mask(subsample_mask=SUBSAMP_MASK)
     for run in run_numbers:
         data,masks,affines,dimsizes,bcvars = [],[],[],[],[]
-        perturb_type = utils.get_perturbation_info(subject_id, session_id, run, return_component=False)
+        perturb_type = helper.get_perturbation_info(subject_id, session_id, run, return_component=False)
         nm='ridge_prediction_euclid_dist'
         root=f'{subject_id}_{session_id}_{perturb_type}_run_{run:02d}_{p.sl_rad}_searchlight_{nm}'
         if p.test: root+='_TEST'
         outname = f'{SUBJ_OUTPATH}/{root}'
         f0 = f'{SCRATCH_OUTPATH}/{root}_mean.npy'
         N = get_num_trials(subject_id, session_id, run)
+        all_results_dump = f'{SCRATCH_OUTPATH}/{root}_all_sl_results_raw.pkl'
         if os.path.exists(f0):
             run_mean_results.append(np.load(f0))
             if p.verbose: print(f'LOADED BACK IN RESULTS from {f0}; CONTINUING TO THE NEXT RUN!\n\n')
             continue
-        all_results_dump = f'{SCRATCH_OUTPATH}/{root}_all_sl_results_raw.pkl'
-        
         elif os.path.exists(all_results_dump):
             # load back in these results
             if RANK==0:

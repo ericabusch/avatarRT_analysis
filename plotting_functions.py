@@ -11,6 +11,8 @@ from config import *
 
 def determine_symbol(pval):
     symbols = {'0.1':'~', '0.05':'*', '0.01':'**', '0.001':'***'}
+    if type(pval) == str:
+        return ''
     if pval <= 0.001:
         return symbols['0.001']
     if pval <= 0.01:
@@ -21,7 +23,7 @@ def determine_symbol(pval):
         return symbols['0.1']
     return 'n.s.'
 
-def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.06], outfn=None, title='',plus_bot=0.04, plus_top=0.07, n_iter=1000, lines=True, sample_alternative='greater',pairwise_alternative='greater',ylabel=None,xlabel=None,print_stats=False):
+def make_barplot_points(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.06], outfn=None, title='',plus_bot=0.04, plus_top=0.07, n_iter=NPERM, lines=True, sample_alternative='greater',pairwise_alternative='greater',ylabel=None,xlabel=None,print_stats=False):
     ## already filter the dataframe to give it just the data necessary - the version you are running or whatever
     # so only have to select the yname
     np.random.seed(10)
@@ -202,7 +204,7 @@ def make_barplot_points_precomputed(dataframe, yname, xname,
         return fig, ax
 
 
-def make_barplot_errorbar(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.06], outfn=None, title='',plus_bot=0.04, plus_top=0.07, n_iter=1000, signif=False, sample_alternative='greater',pairwise_alternative='greater'):
+def make_barplot_errorbar(dataframe, yname, xname, exclude_subs=[], ylim=[-0.04,0.06], outfn=None, title='',plus_bot=0.04, plus_top=0.07, n_iter=NPERM, signif=False, sample_alternative='greater',pairwise_alternative='greater'):
     ## already filter the dataframe to give it just the data necessary - the version you are running or whatever
     # so only have to select the yname
     if (len(exclude_subs)==1) and (exclude_subs[0]=='simulation'): 

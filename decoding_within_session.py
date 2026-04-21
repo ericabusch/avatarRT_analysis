@@ -21,13 +21,9 @@ from sklearn.metrics import mean_squared_error
 from himalaya.ridge import RidgeCV, Ridge
 from sklearn.linear_model import LinearRegression
 
+DECODING_FN    = os.path.join(INTERMEDIATE_RESULTS_PATH, 'decoding_results_aug6_cross_session_run_cross_validation.csv')
 
-
-RESULTS_PUBLIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'results_public')
-PLOTS_DIR      = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'plots')
-DECODING_FN    = os.path.join(RESULTS_PUBLIC, 'decoding_results_aug6_cross_session_run_cross_validation.csv')
-
-os.makedirs(PLOTS_DIR, exist_ok=True)
+os.makedirs(PLOTS_PATH, exist_ok=True)
 sns.set_context(context_params)
 
 def load_RT_data_package(subject_id, session_id, concat=True, shift_by=2, data_type='projected_data'):
@@ -205,18 +201,18 @@ def main():
     v_wm = d_wide['WMP'].values
     v_om = d_wide['OMP'].values
 
-    m_im, lo_im, hi_im, _   = helper.bootstrap_ci(v_im, n_boot=10000, verbose=0)
-    m_wm, lo_wm, hi_wm, _   = helper.bootstrap_ci(v_wm, n_boot=10000, verbose=0)
-    m_om, lo_om, hi_om, _   = helper.bootstrap_ci(v_om, n_boot=10000, verbose=0)
-    _, p_im_0,  _ = helper.permutation_test(np.array([v_im, np.zeros(len(v_im))]),  10000, alternative='greater')
-    _, p_wm_0,  _ = helper.permutation_test(np.array([v_wm, np.zeros(len(v_wm))]),  10000, alternative='greater')
-    _, p_om_0,  _ = helper.permutation_test(np.array([v_om, np.zeros(len(v_om))]),  10000, alternative='greater')
-    _, p_im_wm, _ = helper.permutation_test(np.array([v_im, v_wm]), 10000, alternative='two-sided')
-    _, p_im_om, _ = helper.permutation_test(np.array([v_im, v_om]), 10000, alternative='two-sided')
-    _, p_wm_om, _ = helper.permutation_test(np.array([v_wm, v_om]), 10000, alternative='two-sided')
-    m_im_wm,  lo_im_wm,  hi_im_wm,  _ = helper.bootstrap_ci(v_im - v_wm, n_boot=10000, verbose=0)
-    m_im_om,  lo_im_om,  hi_im_om,  _ = helper.bootstrap_ci(v_im - v_om, n_boot=10000, verbose=0)
-    m_wm_om,  lo_wm_om,  hi_wm_om,  _ = helper.bootstrap_ci(v_wm - v_om, n_boot=10000, verbose=0)
+    m_im, lo_im, hi_im, _   = helper.bootstrap_ci(v_im, n_boot=NBOOT, verbose=0)
+    m_wm, lo_wm, hi_wm, _   = helper.bootstrap_ci(v_wm, n_boot=NBOOT, verbose=0)
+    m_om, lo_om, hi_om, _   = helper.bootstrap_ci(v_om, n_boot=NBOOT, verbose=0)
+    _, p_im_0,  _ = helper.permutation_test(np.array([v_im, np.zeros(len(v_im))]),  NPERM, alternative='greater')
+    _, p_wm_0,  _ = helper.permutation_test(np.array([v_wm, np.zeros(len(v_wm))]),  NPERM, alternative='greater')
+    _, p_om_0,  _ = helper.permutation_test(np.array([v_om, np.zeros(len(v_om))]),  NPERM, alternative='greater')
+    _, p_im_wm, _ = helper.permutation_test(np.array([v_im, v_wm]), NPERM, alternative='two-sided')
+    _, p_im_om, _ = helper.permutation_test(np.array([v_im, v_om]), NPERM, alternative='two-sided')
+    _, p_wm_om, _ = helper.permutation_test(np.array([v_wm, v_om]), NPERM, alternative='two-sided')
+    m_im_wm,  lo_im_wm,  hi_im_wm,  _ = helper.bootstrap_ci(v_im - v_wm, n_boot=NBOOT, verbose=0)
+    m_im_om,  lo_im_om,  hi_im_om,  _ = helper.bootstrap_ci(v_im - v_om, n_boot=NBOOT, verbose=0)
+    m_wm_om,  lo_wm_om,  hi_wm_om,  _ = helper.bootstrap_ci(v_wm - v_om, n_boot=NBOOT, verbose=0)
     d_im_wm = helper.cohens_d_paired(v_im - v_wm, verbose=0)
     d_im_om = helper.cohens_d_paired(v_im - v_om, verbose=0)
     d_wm_om = helper.cohens_d_paired(v_wm - v_om, verbose=0)
@@ -240,7 +236,7 @@ def main():
     ]:
         all_stats.append({
             'comparison': f'MSE: {label} vs 0',
-            'test': f'permutation_test (n_iter=10000, alternative={alt})',
+            'test': f'permutation_test (n_iter={NPERM}, alternative={alt})',
             'group1': label, 'group2': '0 (null)',
             'n1': len(vals), 'n2': np.nan,
             'mean1': np.mean(vals), 'mean2': 0,
@@ -254,7 +250,7 @@ def main():
     ]:
         all_stats.append({
             'comparison': f'MSE: {label}',
-            'test': f'permutation_test (n_iter=10000, alternative={alt})',
+            'test': f'permutation_test (n_iter={NPERM}, alternative={alt})',
             'group1': g1, 'group2': g2,
             'n1': len(g1v), 'n2': len(g2v),
             'mean1': np.mean(g1v), 'mean2': np.mean(g2v),
@@ -263,14 +259,14 @@ def main():
         })
     stats_df = pd.DataFrame(all_stats)
     stats_df['significant_0.05'] = stats_df['p_value'] < 0.05
-    stats_fn = os.path.join(RESULTS_PUBLIC, 'decoding_within_session_stats.csv')
+    stats_fn = os.path.join(FINAL_RESULTS_PATH, 'decoding_within_session_stats.csv')
     stats_df.to_csv(stats_fn, index=False)
     print(f'Saved statistics to {stats_fn}')
 
-    out_fn = os.path.join(PLOTS_DIR, 'decoders_within_session.pdf')
+    out_fn = os.path.join(PLOTS_PATH, 'decoders_within_session.pdf')
     fig, ax = make_barplot_points_precomputed(
         df_cong_avg, 'mse', 'session_type',
-        pvals_vs_0=[p_im_0, p_wm_0, p_om_0],
+        pvals_vs_0=['', '', ''],
         pvals_pairwise=[p_im_wm, p_im_om, p_wm_om],
         exclude_subs=[9, 20],
         ylim=[0, 1.5],

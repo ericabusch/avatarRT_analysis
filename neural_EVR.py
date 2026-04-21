@@ -1,6 +1,6 @@
 # neural_EVR_results.py
-# Replicates the neural EVR analysis from neural_EVR_analysis.py and
-# neural_results.ipynb.  If main_results.csv does not exist, runs
+# Runs main EVR analysis in figure 4
+# If main_results.csv does not exist, runs
 # delta_evr_across_components for every subject, filters the congruent
 # condition, merges with behavioural runwise delta_BC, and saves the
 # combined file.  If main_results.csv already exists, loads it and
@@ -22,11 +22,10 @@ import analysis_helpers as helper
 from plotting_functions import make_barplot_points_precomputed, determine_symbol
 from config import *
 
-RESULTS_PUBLIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'results_public')
-PLOTS_DIR      = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'plots')
-MAIN_RESULTS   = os.path.join(FINAL_RESULTS_PATH, 'main_results.csv')
 
-os.makedirs(PLOTS_DIR, exist_ok=True)
+MAIN_RESULTS   = os.path.join(FINAL_RESULTS_PATH, 'main_results.csv')
+os.makedirs(PLOTS_PATH, exist_ok=True)
+
 def delta_evr_across_components(subject_id, session_name_mapping):
 
     results = pd.DataFrame(columns=['session_type', 'session_id', 'nfb_component_idx','congruent', 
@@ -123,7 +122,7 @@ if not os.path.isfile(MAIN_RESULTS):
 
     # Load pre-computed behavioural runwise delta_BC (observed subjects only)
     behav = pd.read_csv(
-        os.path.join(FINAL_RESULTS_PATH, 'behavioral_change_runwise_with_simulations.csv'),
+        os.path.join(INTERMEDIATE_RESULTS_PATH, 'behavioral_change_runwise_with_simulations.csv'),
         index_col=0)
     behav = behav[behav['simulated'] == 0][['subject_id', 'session_type', 'delta_BC']].copy()
 
@@ -146,9 +145,9 @@ if not os.path.isfile(MAIN_RESULTS):
         rows.append({**base, 'metric': 'delta_EVR', 'score': row['delta_EVR']})
         rows.append({**base, 'metric': 'delta_BC',  'score': row['delta_BC']})
 
-    main_df = pd.DataFrame(rows)
-    main_df.to_csv(MAIN_RESULTS)
-    print(f'Saved {MAIN_RESULTS}  shape={main_df.shape}')
+    # main_df = pd.DataFrame(rows)
+    # main_df.to_csv(MAIN_RESULTS)
+    # print(f'Saved {MAIN_RESULTS}  shape={main_df.shape}')
 
 else:
     print(f'Loading existing {MAIN_RESULTS}')
@@ -180,32 +179,34 @@ v_wm = d_wide_evr['WMP'].values
 v_om = d_wide_evr['OMP'].values
 print("\n--- delta_EVR comparisons wiht zero---")
 zeros = np.zeros(len(v_im))  # for paired permutation tests against 0
-_, p_im_0, _  = helper.permutation_test(np.array([v_im, zeros]), 10000, alternative='greater')
-_, p_wmp_0, _ = helper.permutation_test(np.array([v_wm, zeros]), 10000, alternative='greater')
-_, p_omp_0, _ = helper.permutation_test(np.array([v_om, zeros]), 10000, alternative='two-sided')
-m_im_0,  lower_im_0,  upper_im_0,  _ = helper.bootstrap_ci(v_im, n_boot=10000, verbose=0)
-m_wmp_0, lower_wmp_0, upper_wmp_0, _ = helper.bootstrap_ci(v_wm, n_boot=10000, verbose=0)
-m_omp_0, lower_omp_0, upper_omp_0, _ = helper.bootstrap_ci(v_om, n_boot=10000, verbose=0)
+_, p_im_0, _  = helper.permutation_test(np.array([v_im, zeros]), NPERM, alternative='greater')
+_, p_wmp_0, _ = helper.permutation_test(np.array([v_wm, zeros]), NPERM, alternative='greater')
+_, p_omp_0, _ = helper.permutation_test(np.array([v_om, zeros]), NPERM, alternative='two-sided')
+m_im_0,  lower_im_0,  upper_im_0,  _ = helper.bootstrap_ci(v_im, n_boot=NBOOT, verbose=0)
+m_wmp_0, lower_wmp_0, upper_wmp_0, _ = helper.bootstrap_ci(v_wm, n_boot=NBOOT, verbose=0)
+m_omp_0, lower_omp_0, upper_omp_0, _ = helper.bootstrap_ci(v_om, n_boot=NBOOT, verbose=0)
 d_im_0  = helper.cohens_d_paired(v_im, verbose=0)
 d_wmp_0 = helper.cohens_d_paired(v_wm, verbose=0)
 d_omp_0 = helper.cohens_d_paired(v_om, verbose=0)
-print(f'IM   vs 0:   mean={m_im_0*100:.2f}  p={p_im_0:.2f}    95%CI=[{lower_im_0*100:.2f},{upper_im_0*100:.2f}]    d={d_im_0:.2f}')
-print(f'WMP  vs 0:   mean={m_wmp_0*100:.2f} p={p_wmp_0:.2f}   95%CI=[{lower_wmp_0*100:.2f},{upper_wmp_0*100:.2f}]  d={d_wmp_0:.2f}')
-print(f'OMP  vs 0:   mean={m_omp_0*100:.2f} p={p_omp_0:.2f}   95%CI=[{lower_omp_0*100:.2f},{upper_omp_0*100:.2f}]  d={d_omp_0:.2f}')
+if VERBOSE:
+    print(f'IM   vs 0:   mean={m_im_0*100:.2f}  p={p_im_0:.2f}    95%CI=[{lower_im_0*100:.2f},{upper_im_0*100:.2f}]    d={d_im_0:.2f}')
+    print(f'WMP  vs 0:   mean={m_wmp_0*100:.2f} p={p_wmp_0:.2f}   95%CI=[{lower_wmp_0*100:.2f},{upper_wmp_0*100:.2f}]  d={d_wmp_0:.2f}')
+    print(f'OMP  vs 0:   mean={m_omp_0*100:.2f} p={p_omp_0:.2f}   95%CI=[{lower_omp_0*100:.2f},{upper_omp_0*100:.2f}]  d={d_omp_0:.2f}')
 
-_, p_im_wm, _ = helper.permutation_test(np.array([v_im, v_wm]), 10000, alternative='two-sided')
-_, p_im_om, _ = helper.permutation_test(np.array([v_im, v_om]), 10000, alternative='greater')
-_, p_wm_om, _ = helper.permutation_test(np.array([v_wm, v_om]), 10000, alternative='greater')
-m_im_wm, lo_im_wm, hi_im_wm, _ = helper.bootstrap_ci(v_im - v_wm, n_boot=10000, verbose=0)
-m_im_om, lo_im_om, hi_im_om, _ = helper.bootstrap_ci(v_im - v_om, n_boot=10000, verbose=0)
-m_wm_om, lo_wm_om, hi_wm_om, _ = helper.bootstrap_ci(v_wm - v_om, n_boot=10000, verbose=0)
+_, p_im_wm, _ = helper.permutation_test(np.array([v_im, v_wm]), NPERM, alternative='two-sided')
+_, p_im_om, _ = helper.permutation_test(np.array([v_im, v_om]), NPERM, alternative='greater')
+_, p_wm_om, _ = helper.permutation_test(np.array([v_wm, v_om]), NPERM, alternative='greater')
+m_im_wm, lo_im_wm, hi_im_wm, _ = helper.bootstrap_ci(v_im - v_wm, n_boot=NBOOT, verbose=0)
+m_im_om, lo_im_om, hi_im_om, _ = helper.bootstrap_ci(v_im - v_om, n_boot=NBOOT, verbose=0)
+m_wm_om, lo_wm_om, hi_wm_om, _ = helper.bootstrap_ci(v_wm - v_om, n_boot=NBOOT, verbose=0)
 d_im_wm = helper.cohens_d_paired(v_im - v_wm, verbose=0)
 d_im_om = helper.cohens_d_paired(v_im - v_om, verbose=0)
 d_wm_om = helper.cohens_d_paired(v_wm - v_om, verbose=0)
-print("\n--- delta_EVR pairwise comparisons ---")
-print(f"  IM  vs WMP:  mean={m_im_wm*100:.2f}  p={p_im_wm:.2f}  95%CI=[{lo_im_wm*100:.2f},{hi_im_wm*100:.2f}]  d={d_im_wm:.2f}")
-print(f"  IM  vs OMP:  mean={m_im_om*100:.2f}  p={p_im_om:.2f}  95%CI=[{lo_im_om*100:.2f},{hi_im_om*100:.2f}]  d={d_im_om:.2f}")
-print(f"  WMP vs OMP:  mean={m_wm_om*100:.2f}  p={p_wm_om:.2f}  95%CI=[{lo_wm_om*100:.2f},{hi_wm_om*100:.2f}]  d={d_wm_om:.2f}")
+if VERBOSE:
+    print("\n--- delta_EVR pairwise comparisons ---")
+    print(f"  IM  vs WMP:  mean={m_im_wm*100:.2f}  p={p_im_wm:.2f}  95%CI=[{lo_im_wm*100:.2f},{hi_im_wm*100:.2f}]  d={d_im_wm:.2f}")
+    print(f"  IM  vs OMP:  mean={m_im_om*100:.2f}  p={p_im_om:.2f}  95%CI=[{lo_im_om*100:.2f},{hi_im_om*100:.2f}]  d={d_im_om:.2f}")
+    print(f"  WMP vs OMP:  mean={m_wm_om*100:.2f}  p={p_wm_om:.2f}  95%CI=[{lo_wm_om*100:.2f},{hi_wm_om*100:.2f}]  d={d_wm_om:.2f}")
 
 evr_stats = []
 for label, vals, p, cohd, ci_lo, ci_hi, alt in [
@@ -215,7 +216,7 @@ for label, vals, p, cohd, ci_lo, ci_hi, alt in [
 ]:
     evr_stats.append({
         'comparison': f'delta_EVR: {label} vs 0',
-        'test': f'permutation_test (n_iter=10000, alternative={alt})',
+        'test': f'permutation_test (n_iter={NPERM}, alternative={alt})',
         'group1': label, 'group2': '0 (null)',
         'n1': len(vals), 'n2': np.nan,
         'mean1': np.mean(vals), 'mean2': 0,
@@ -229,7 +230,7 @@ for label, g1, g2, g1v, g2v, diff_vals, p, cohd, ci_lo, ci_hi, alt in [
 ]:
     evr_stats.append({
         'comparison': f'delta_EVR: {label}',
-        'test': f'permutation_test (n_iter=10000, alternative={alt})',
+        'test': f'permutation_test (n_iter={NPERM}, alternative={alt})',
         'group1': g1, 'group2': g2,
         'n1': len(g1v), 'n2': len(g2v),
         'mean1': np.mean(g1v), 'mean2': np.mean(g2v),
@@ -252,7 +253,8 @@ fig, ax = make_barplot_points_precomputed(
     plus_bot=0.03, plus_top=0.055,
     ylabel='Δ Explained Variance Ratio', xlabel='',
 )
-plt.savefig(os.path.join(PLOTS_DIR, 'neural_EVR_barplot.pdf'),
+#plt.show()
+plt.savefig(os.path.join(PLOTS_PATH, 'neural_EVR_barplot.pdf'),
             transparent=True, bbox_inches='tight', format='pdf')
 
 
@@ -280,12 +282,12 @@ formula = '0 + delta_BC ~ delta_EVR * C(session_type) + wmp_first'
 ols_model = smf.ols(formula, 
                      data=wide).fit(cov_type='cluster', 
                                   cov_kwds={'groups': wide['subject_id']})
-
-print(f'\n=== Model: {formula} ===')
-print(ols_model.summary())
-print("\n--- ANOVA on ols model () ---")
 anova_results = anova_lm(ols_model, typ=3)
-print(anova_results[['sum_sq', 'df', 'F', 'PR(>F)']])
+if VERBOSE:
+    print(f'\n=== Model: {formula} ===')
+    print(ols_model.summary())
+    print("\n--- ANOVA on ols model () ---")
+    print(anova_results[['sum_sq', 'df', 'F', 'PR(>F)']])
 ss_residual = anova_results.loc['Residual', 'sum_sq']
 anova_results['partial_eta_sq'] = anova_results['sum_sq'] / (anova_results['sum_sq'] + ss_residual)
 anova_results['R2_full_model'] = ols_model.rsquared
@@ -298,8 +300,9 @@ simple_slope_rows = []
 for M in ORDER:
     sub = wide[wide['session_type'] == M].dropna(subset=['delta_EVR', 'delta_BC'])
     ols = smf.ols('delta_BC ~ delta_EVR', data=sub).fit()
-    print(f'\n--- Simple slope for {M} ---')
-    print(ols.summary())
+    if VERBOSE:
+        print(f'\n--- Simple slope for {M} ---')
+        print(ols.summary())
     beta = ols.params['delta_EVR']
     pval = ols.pvalues['delta_EVR']
     ci   = ols.conf_int().loc['delta_EVR']
@@ -384,9 +387,9 @@ for i, (M, ax) in enumerate(zip(ORDER, axes)):
 
 sns.despine()
 plt.tight_layout()
-plt.savefig(os.path.join(PLOTS_DIR, 'neural_EVR_regression_panels.pdf'),
+plt.savefig(os.path.join(PLOTS_PATH, 'neural_EVR_regression_panels.pdf'),
             transparent=True, bbox_inches='tight', format='pdf')
 # plt.show()
 
-print(f'\nAll plots saved to {PLOTS_DIR}')
+print(f'\nAll plots saved to {PLOTS_PATH}')
 print('Neural EVR results complete.')

@@ -19,8 +19,9 @@ import analysis_helpers as helper
 from plotting_functions import make_barplot_points_precomputed, determine_symbol
 from config import *
 SEED=4
-RESULTS_PUBLIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'results_public')
-PLOTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'plots')
+
+# INTERMEDIATE_RESULTS_PATH
+# PLOTS_PATH
 np.random.seed(SEED)
 
 # ─── Data loading ────────────────────────────────────────────────────────────
@@ -253,12 +254,12 @@ if __name__ == '__main__':
     v_om = d_stats[d_stats['session_type'] == 'OMP']['delta_BC'].values
 
     # --- 3a: real subjects delta_BC vs 0 (IM/WMP: greater; OMP: two-sided) ---
-    _, p_im_0, _  = helper.permutation_test(np.array([v_im, np.zeros(len(v_im))]), 10000, alternative='greater')
-    _, p_wmp_0, _ = helper.permutation_test(np.array([v_wm, np.zeros(len(v_wm))]), 10000, alternative='greater')
-    _, p_omp_0, _ = helper.permutation_test(np.array([v_om, np.zeros(len(v_om))]), 10000, alternative='two-sided')
-    m_im_0,  lower_im_0,  upper_im_0,  _ = helper.bootstrap_ci(v_im, n_boot=10000, verbose=0)
-    m_wmp_0, lower_wmp_0, upper_wmp_0, _ = helper.bootstrap_ci(v_wm, n_boot=10000, verbose=0)
-    m_omp_0, lower_omp_0, upper_omp_0, _ = helper.bootstrap_ci(v_om, n_boot=10000, verbose=0)
+    _, p_im_0, _  = helper.permutation_test(np.array([v_im, np.zeros(len(v_im))]), NPERM, alternative='greater')
+    _, p_wmp_0, _ = helper.permutation_test(np.array([v_wm, np.zeros(len(v_wm))]), NPERM, alternative='greater')
+    _, p_omp_0, _ = helper.permutation_test(np.array([v_om, np.zeros(len(v_om))]), NPERM, alternative='two-sided')
+    m_im_0,  lower_im_0,  upper_im_0,  _ = helper.bootstrap_ci(v_im, n_boot=NBOOT, verbose=0)
+    m_wmp_0, lower_wmp_0, upper_wmp_0, _ = helper.bootstrap_ci(v_wm, n_boot=NBOOT, verbose=0)
+    m_omp_0, lower_omp_0, upper_omp_0, _ = helper.bootstrap_ci(v_om, n_boot=NBOOT, verbose=0)
     d_im_0  = helper.cohens_d_paired(v_im, verbose=0)
     d_wmp_0 = helper.cohens_d_paired(v_wm, verbose=0)
     d_omp_0 = helper.cohens_d_paired(v_om, verbose=0)
@@ -275,7 +276,7 @@ if __name__ == '__main__':
     ]:
         all_stats.append({
             'comparison': f'delta_BC: {label} vs 0',
-            'test': f'permutation_test (n_iter=10000, alternative={alt})',
+            'test': f'permutation_test (n_iter={NPERM}, alternative={alt})',
             'group1': label, 'group2': '0 (null)',
             'n1': len(vals), 'n2': np.nan,
             'mean1': np.mean(vals), 'mean2': 0,
@@ -284,12 +285,12 @@ if __name__ == '__main__':
         })
 
     # --- 3b: pairwise comparisons (IM vs WMP: two-sided; IM/WMP vs OMP: greater) ---
-    _, p_im_wm, _ = helper.permutation_test(np.array([v_im, v_wm]), 10000, alternative='two-sided')
-    _, p_im_om, _ = helper.permutation_test(np.array([v_im, v_om]), 10000, alternative='greater')
-    _, p_wm_om, _ = helper.permutation_test(np.array([v_wm, v_om]), 10000, alternative='greater')
-    m_im_wmp,  lower_im_wmp,  upper_im_wmp,  _ = helper.bootstrap_ci(v_im - v_wm, n_boot=10000, verbose=0)
-    m_im_omp,  lower_im_omp,  upper_im_omp,  _ = helper.bootstrap_ci(v_im - v_om, n_boot=10000, verbose=0)
-    m_wmp_omp, lower_wmp_omp, upper_wmp_omp, _ = helper.bootstrap_ci(v_wm - v_om, n_boot=10000, verbose=0)
+    _, p_im_wm, _ = helper.permutation_test(np.array([v_im, v_wm]), NPERM, alternative='two-sided')
+    _, p_im_om, _ = helper.permutation_test(np.array([v_im, v_om]), NPERM, alternative='greater')
+    _, p_wm_om, _ = helper.permutation_test(np.array([v_wm, v_om]), NPERM, alternative='greater')
+    m_im_wmp,  lower_im_wmp,  upper_im_wmp,  _ = helper.bootstrap_ci(v_im - v_wm, n_boot=NBOOT, verbose=0)
+    m_im_omp,  lower_im_omp,  upper_im_omp,  _ = helper.bootstrap_ci(v_im - v_om, n_boot=NBOOT, verbose=0)
+    m_wmp_omp, lower_wmp_omp, upper_wmp_omp, _ = helper.bootstrap_ci(v_wm - v_om, n_boot=NBOOT, verbose=0)
     d_im_wm = helper.cohens_d_paired(v_im - v_wm, verbose=0)
     d_im_om = helper.cohens_d_paired(v_im - v_om, verbose=0)
     d_wm_om = helper.cohens_d_paired(v_wm - v_om, verbose=0)
@@ -306,7 +307,7 @@ if __name__ == '__main__':
     ]:
         all_stats.append({
             'comparison': f'delta_BC: {label}',
-            'test': f'permutation_test (n_iter=10000, alternative={alt})',
+            'test': f'permutation_test (n_iter={NPERM}, alternative={alt})',
             'group1': g1, 'group2': g2,
             'n1': len(g1_vals), 'n2': len(g2_vals),
             'mean1': np.mean(g1_vals), 'mean2': np.mean(g2_vals),
@@ -323,17 +324,17 @@ if __name__ == '__main__':
         ysim = temp[temp['simulated'] == True]['delta_BC'].values
         obs_data[M] = yobs
         sim_data[M] = ysim
-        _, p_obs_sim = ttest_ind(yobs, ysim, permutations=10000, alternative='two-sided')
+        _, p_obs_sim = ttest_ind(yobs, ysim, permutations=NPERM, alternative='two-sided')
         obs_vs_sim_pvals[M] = p_obs_sim
-        m_obs, lower_obs, upper_obs, _ = helper.bootstrap_ci(yobs, n_boot=10000, verbose=0)
-        m_sim, lower_sim, upper_sim, _ = helper.bootstrap_ci(ysim, n_boot=10000, verbose=0)
+        m_obs, lower_obs, upper_obs, _ = helper.bootstrap_ci(yobs, n_boot=NBOOT, verbose=0)
+        m_sim, lower_sim, upper_sim, _ = helper.bootstrap_ci(ysim, n_boot=NBOOT, verbose=0)
         d_obs_sim = helper.cohens_d_independent(yobs, ysim, verbose=0)
         print(f'{M}: obs mean={m_obs:.4f} 95%CI=[{lower_obs:.4f},{upper_obs:.4f}]  '
               f'sim mean={m_sim:.4f} 95%CI=[{lower_sim:.4f},{upper_sim:.4f}]  '
               f'p={p_obs_sim:.4f}  d={d_obs_sim:.4f}')
         all_stats.append({
             'comparison': f'{M}: obs vs sim delta_BC',
-            'test': 'permutation_ttest_ind (n_iter=10000, alternative=two-sided)',
+            'test': f'permutation_ttest_ind (n_iter={NPERM}, alternative=two-sided)',
             'group1': 'observed', 'group2': 'simulated',
             'n1': len(yobs), 'n2': len(ysim),
             'mean1': m_obs, 'mean2': m_sim,
@@ -386,7 +387,7 @@ if __name__ == '__main__':
         axes.axhline(y=0.58, xmin=0.25, xmax=0.75, ls='-', c='k')
         axes.text(x=0.5, y=0.6, s=symb)
         sns.despine(right=True, top=True)
-        plt.savefig(os.path.join(PLOTS_DIR, f'true_v_sim_bars_{M}.pdf'),
+        plt.savefig(os.path.join(PLOTS_PATH, f'true_v_sim_bars_{M}.pdf'),
                     transparent=True, bbox_inches='tight', format='pdf')
 
     # Plot 2 – behavioral learning curves per perturbation type (real + simulated)
@@ -409,7 +410,7 @@ if __name__ == '__main__':
               yticklabels=[0, 30, 60])
         g.axhline(0, c='k', ls='--')
         sns.despine()
-        plt.savefig(os.path.join(PLOTS_DIR, f'behavioral_curves_{M}.pdf'),
+        plt.savefig(os.path.join(PLOTS_PATH, f'behavioral_curves_{M}.pdf'),
                     transparent=True, bbox_inches='tight', format='pdf')
 
     # ── Permutation cluster tests on real-subject trial series ────────────────
@@ -441,7 +442,7 @@ if __name__ == '__main__':
 
         arr = arr_all[:counter, :, i]
         t_obs, is_cluster_mask, cluster_pv, H0_perm = permutation_cluster_1samp_test(
-            arr, tail=1, n_permutations=10000, threshold=2.5,
+            arr, tail=1, n_permutations=NPERM, threshold=2.5,
             max_step=4, adjacency=None, out_type='mask', buffer_size=None,
         )
         is_signif_mask, pvalues = expand_pval_for_plot(is_cluster_mask, cluster_pv, maxx + 1)
@@ -451,7 +452,7 @@ if __name__ == '__main__':
 
     # Save cluster p-values to results_public
     pd.DataFrame({M: pvalues_trialseries[M] for M in ORDER}).to_csv(
-        os.path.join(RESULTS_PUBLIC, 'behavioral_cluster_pvalues.csv'))
+        os.path.join(FINAL_RESULTS_PATH, 'behavioral_cluster_pvalues.csv'))
 
     # Plot 3 – combined learning curves with significance markers
     df_here = trialwise_results_filt[
@@ -479,7 +480,7 @@ if __name__ == '__main__':
         print(f'{M}: {np.sum(mask)} significant timepoints')
 
     sns.despine()
-    plt.savefig(os.path.join(PLOTS_DIR, 'behavioral_curves_signif.pdf'),
+    plt.savefig(os.path.join(PLOTS_PATH, 'behavioral_curves_signif.pdf'),
                 transparent=True, bbox_inches='tight', format='pdf')
 
     # Plot 4 – bar plot with individual subject points and precomputed pairwise statistics
@@ -491,7 +492,7 @@ if __name__ == '__main__':
         ylim=[-0.3, 0.7],
         plus_bot=0.2, plus_top=0.35,
     )
-    plt.savefig(os.path.join(PLOTS_DIR, 'behavioral_difference_true.pdf'),
+    plt.savefig(os.path.join(PLOTS_PATH, 'behavioral_difference_true.pdf'),
                 transparent=True, bbox_inches='tight', format='pdf')
 
     # ── Linear models on delta_BC ──────────────────────────────────────────────
@@ -561,8 +562,6 @@ if __name__ == '__main__':
             'coef': m3.params[term], 'std_err': m3.bse[term],
             'CI_lower': ci[0], 'CI_upper': ci[1],
         })
-    
-
 
     # Save model results
     model_df = pd.DataFrame(model_stats)
@@ -570,5 +569,5 @@ if __name__ == '__main__':
     model_df.to_csv(model_fn, index=False)
     print(f'\nSaved linear model results to {model_fn}')
 
-    print(f'\nAll plots saved to {PLOTS_DIR}')
+    print(f'\nAll plots saved to {PLOTS_PATH}')
     print('Behavioral results complete.')

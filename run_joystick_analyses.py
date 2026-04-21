@@ -26,7 +26,7 @@ import seaborn as sns
 
 import analysis_helpers as helper
 from config import (SUB_IDS, INTERMEDIATE_RESULTS_PATH, FINAL_RESULTS_PATH,
-                    VERBOSE, NPERM, SEED, context_params)
+                    VERBOSE, NPERM, NBOOT, SEED, context_params)
 from plotting_functions import determine_symbol
 from decoding_utils import run_figure1_analysis, run_supp_dimensionality_analysis
 
@@ -38,7 +38,7 @@ os.makedirs(PLOTS_DIR, exist_ok=True)
 DIMS_TO_TEST = [2, 3, 5, 10, 15, 20]
 DEFAULT_DIM  = 20
 CV           = 'run'  # leave-one-run-out cross-validation
-N_BOOT       = 10000
+
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +136,7 @@ def plot_figure1(df, regression_function='himalaya', plots_dir=None):
 
         arr0, arr1 = np.array(points0), np.array(points1)
         _, pv, _ = helper.permutation_test(
-            np.array([arr0, arr1]), n_iterations=N_BOOT, alternative='two-sided')
+            np.array([arr0, arr1]), n_iterations=NBOOT, alternative='two-sided')
         pv_plot = pv if pv <= 0.5 else 1 - pv
         pstr = determine_symbol(pv_plot)
         yloc = np.max(np.concatenate((points0, points1))) + yoff
@@ -157,7 +157,7 @@ def plot_figure1(df, regression_function='himalaya', plots_dir=None):
 # Statistics: voxel vs T-PHATE (MSE and RSA Z)
 # ---------------------------------------------------------------------------
 
-def compute_figure1_stats(df, regression_function='himalaya', n_boot=N_BOOT, out_fn=None):
+def compute_figure1_stats(df, regression_function='himalaya', n_boot=NBOOT, out_fn=None):
     """
     Compares voxel vs T-PHATE decoding performance across subjects.
     Reports mean difference (voxel - tphate), 95% bootstrap CI, permutation

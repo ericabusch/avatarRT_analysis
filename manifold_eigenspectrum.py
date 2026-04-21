@@ -16,12 +16,10 @@ import seaborn as sns
 from scipy.stats import spearmanr
 from config import *
 
-RESULTS_PUBLIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'results_public')
-PLOTS_DIR      = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'plots')
-EIGENSPECTRUM_FN = os.path.join(RESULTS_PUBLIC, 'manifold_eigenspectrum.csv')
-MAIN_RESULTS_FN  = os.path.join(RESULTS_PUBLIC, 'main_results.csv')
+EIGENSPECTRUM_FN = os.path.join(FINAL_RESULTS_PATH, 'manifold_eigenspectrum.csv')
+MAIN_RESULTS_FN  = os.path.join(FINAL_RESULTS_PATH, 'main_results.csv')
 
-os.makedirs(PLOTS_DIR, exist_ok=True)
+os.makedirs(PLOTS_PATH, exist_ok=True)
 
 # Subjects for analysis (exclude scanner/sleep issues)
 SUBJECTS = [s for s in SUB_IDS if s not in ['avatarRT_sub_09', 'avatarRT_sub_20']]
@@ -140,7 +138,7 @@ def plot_eigenspectrum_grid(V, subjects_used, nrows=3, ncols=6, figsize=(16, 10)
         axes[j].axis('off')
 
     plt.tight_layout()
-    out_fn = os.path.join(PLOTS_DIR, 'eigenspectrum_grid.pdf')
+    out_fn = os.path.join(PLOTS_PATH, 'eigenspectrum_grid.pdf')
     plt.savefig(out_fn, format='pdf', transparent=True)
     print(f'Saved plot: {out_fn}')
     plt.show()
@@ -178,7 +176,7 @@ def plot_pev_by_condition(df):
     ax.axhline(0, color='k', ls='--', linewidth=0.8)
     sns.despine()
     plt.tight_layout()
-    out_fn = os.path.join(PLOTS_DIR, 'eigenspectrum_by_condition.pdf')
+    out_fn = os.path.join(PLOTS_PATH, 'eigenspectrum_by_condition.pdf')
     plt.savefig(out_fn, format='pdf', transparent=True)
     print(f'Saved plot: {out_fn}')
     plt.show()
@@ -269,7 +267,7 @@ def plot_pev_correlations(df):
 
     sns.despine()
     plt.tight_layout()
-    out_fn = os.path.join(PLOTS_DIR, 'eigenspectrum_correlations.pdf')
+    out_fn = os.path.join(PLOTS_PATH, 'eigenspectrum_correlations.pdf')
     plt.savefig(out_fn, format='pdf', transparent=True)
     print(f'Saved plot: {out_fn}')
     plt.show()

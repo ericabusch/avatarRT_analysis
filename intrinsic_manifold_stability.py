@@ -57,9 +57,6 @@ def prep_joystick_data(subject_id):
     np.save(temp_fn, tph_dst)
     return tph_dst
 
-################ NOTE TO SELF  : CONTINUE MAKING SURE THAT ALL CODE USES THE ANALYSIS HELPERS VERSIONS OF FUNCTIONS FOR CONSISTENCY ################
-
-
 def prep_rt_data(subject_id, session_id):
     """Load (or compute) 20D T-PHATE embedding of real-time session data."""
     temp_fn = os.path.join(SCRATCH_DIR, 'joystick_analyses',
@@ -176,9 +173,9 @@ def compute_zscored_results(df, btwn_subj_df):
         self_others = np.min(self_df['gw2'].values)
 
         intrin2intrin = np.random.choice(
-            np.concatenate([[self_others], othr_df['dist_intrinsic2intrinsic'].values]), 10000)
+            np.concatenate([[self_others], othr_df['dist_intrinsic2intrinsic'].values]), NPERM)
         intrin2other  = np.random.choice(
-            np.concatenate([[self_others], othr_df['dist_intrinsic2other'].values]), 10000)
+            np.concatenate([[self_others], othr_df['dist_intrinsic2other'].values]), NPERM)
 
         zs0 = (self_others - np.mean(intrin2intrin)) / np.std(intrin2intrin)
         zs1 = (self_others - np.mean(intrin2other))  / np.std(intrin2other)
@@ -212,11 +209,11 @@ def plot_manifold_stability(rnd_df):
     a = np.array([rnd_df['zscore_dist_intrinsic2intrinsic_btwn'].values, np.zeros(len(rnd_df))])
     b = np.array([rnd_df['zscore_dist_intrinsic2others_btwn'].values,    np.zeros(len(rnd_df))])
 
-    _, p0, _ = helper.permutation_test(a, 10000, alternative='two-sided')
-    _, p1, _ = helper.permutation_test(b, 10000, alternative='two-sided')
+    _, p0, _ = helper.permutation_test(a, NPERM, alternative='two-sided')
+    _, p1, _ = helper.permutation_test(b, NPERM, alternative='two-sided')
     # get confidence intervals for the means
-    mean_a, lower_a, upper_a, _ = helper.bootstrap_ci(a[0], n_boot=10000, verbose=0)
-    mean_b, lower_b, upper_b, _ = helper.bootstrap_ci(b[0], n_boot=10000, verbose=0)
+    mean_a, lower_a, upper_a, _ = helper.bootstrap_ci(a[0], n_boot=NBOOT, verbose=0)
+    mean_b, lower_b, upper_b, _ = helper.bootstrap_ci(b[0], n_boot=NBOOT, verbose=0)
     d_a = helper.cohens_d_paired(a[0], verbose=0)
     d_b = helper.cohens_d_paired(b[0], verbose=0)
     # display results with p-values and confidence intervals
@@ -229,10 +226,10 @@ def plot_manifold_stability(rnd_df):
     print(f'  intrinsic2others:    p = {p1:.4f}  {determine_symbol(p1)}')
 
     stats_rows = [
-        {'comparison': 'intrinsic2others vs 0', 'test': 'permutation_test (n_iter=10000, alternative=two-sided)',
+        {'comparison': 'intrinsic2others vs 0', 'test': f'permutation_test (n_iter={NPERM}, alternative=two-sided)',
          'group1': 'intrinsic2others', 'group2': '0 (null)', 'n1': len(b[0]), 'n2': np.nan,
          'mean1': mean_b, 'mean2': 0, 'p_value': p1, 'ci_lower': lower_b, 'ci_upper': upper_b, 'cohens_d': d_b},
-        {'comparison': 'intrinsic2intrinsic vs 0', 'test': 'permutation_test (n_iter=10000, alternative=two-sided)',
+        {'comparison': 'intrinsic2intrinsic vs 0', 'test': f'permutation_test (n_iter={NPERM}, alternative=two-sided)',
          'group1': 'intrinsic2intrinsic', 'group2': '0 (null)', 'n1': len(a[0]), 'n2': np.nan,
          'mean1': mean_a, 'mean2': 0, 'p_value': p0, 'ci_lower': lower_a, 'ci_upper': upper_a, 'cohens_d': d_a},
     ]

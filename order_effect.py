@@ -22,23 +22,14 @@ import analysis_helpers as helper
 from plotting_functions import determine_symbol
 from config import *
 
-RESULTS_PUBLIC  = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'results_public')
-FINAL_RESULTS   = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'final_results')
-PLOTS_DIR       = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'plots')
-LM_RESULTS_FN   = os.path.join(RESULTS_PUBLIC, 'order_effects_lm_results.csv')
-BEHAV_SESSION_FN = os.path.join(FINAL_RESULTS, 'behavioral_change_session.csv')
-MAIN_RESULTS_FN  = os.path.join(RESULTS_PUBLIC, 'main_results.csv')
-
-os.makedirs(PLOTS_DIR, exist_ok=True)
+LM_RESULTS_FN   = os.path.join(FINAL_RESULTS_PATH, 'order_effects_lm_results.csv')
+BEHAV_SESSION_FN = os.path.join(INTERMEDIATE_RESULTS_PATH, 'behavioral_change_session.csv')
+MAIN_RESULTS_FN  = os.path.join(FINAL_RESULTS_PATH, 'main_results.csv')
 
 sns.set_context(context_params)
 
 PALETTE = ["#fca5a5", "#ff0000"]   # light red = WMP-first, dark red = OMP-first
 
-
-# ─── Helpers ──────────────────────────────────────────────────────────────────
-
-# ─── Analysis ─────────────────────────────────────────────────────────────────
 
 def load_data():
     """
@@ -168,16 +159,16 @@ def plot_order_barplot(df):
         ymax = max(v0.max(), v1.max())
 
         # Between-group comparison (WMP-first > OMP-first)
-        _, p_btwn = ttest_ind(v0, v1, permutations=10000, alternative='greater')
+        _, p_btwn = ttest_ind(v0, v1, permutations=NPERM, alternative='greater')
         ax.plot([x0, x1], [0.7, 0.7], lw=1, c='k')
         ax.text(j, ymax + 0.18, determine_symbol(p_btwn), ha='center', va='bottom',
                 color='k', fontsize=12)
 
         # Per-bar one-sample tests vs 0
-        _, p0, _ = helper.permutation_test(np.array([v0.values, np.zeros(len(v0))]), 10000, alternative='greater')
-        _, p1, _ = helper.permutation_test(np.array([v1.values, np.zeros(len(v1))]), 10000, alternative='greater')
-        _, lower0, upper0 = helper.bootstrap_ci(v0.values, n_boot=10000)
-        _, lower1, upper1 = helper.bootstrap_ci(v1.values, n_boot=10000)
+        _, p0, _ = helper.permutation_test(np.array([v0.values, np.zeros(len(v0))]), NPERM, alternative='greater')
+        _, p1, _ = helper.permutation_test(np.array([v1.values, np.zeros(len(v1))]), NPERM, alternative='greater')
+        _, lower0, upper0, _ = helper.bootstrap_ci(v0.values, n_boot=NBOOT)
+        _, lower1, upper1, _ = helper.bootstrap_ci(v1.values, n_boot=NBOOT)
         print(f'{ses} WMP-first: p={p0:.4f}, 95% CI=[{lower0:.4f}, {upper0:.4f}]')
         print(f'{ses} OMP-first: p={p1:.4f}, 95% CI=[{lower1:.4f}, {upper1:.4f}]')
         ax.text(x0, ymax + 0.05, determine_symbol(p0), ha='center', va='bottom',
@@ -192,7 +183,7 @@ def plot_order_barplot(df):
 
     sns.despine()
     plt.tight_layout()
-    out_fn = os.path.join(PLOTS_DIR, 'order_effects_barplot.pdf')
+    out_fn = os.path.join(PLOTS_PATH, 'order_effects_barplot.pdf')
     plt.savefig(out_fn, format='pdf', transparent=True)
     print(f'Saved plot: {out_fn}')
     plt.show()

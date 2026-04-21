@@ -7,6 +7,7 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_PATH = '../..'
 DATA_PATH = os.path.expanduser('~/Desktop/BCI/avatarRT_dryad/avatarRT_subject_data')
 SCRATCH_PATH = os.path.join(_SCRIPT_DIR, 'results', 'scratch')
+PLOTS_PATH = os.path.join(_SCRIPT_DIR, 'results', 'plots')
 INTERMEDIATE_RESULTS_PATH = os.path.join(_SCRIPT_DIR, 'results', 'intermediate_results')
 FINAL_RESULTS_PATH = os.path.join(_SCRIPT_DIR, 'results', 'final_results')
 SESSION_TRACKER = os.path.join(DATA_PATH, 'session_tracker.csv')
@@ -30,7 +31,8 @@ SHIFTBY=2
 SEED=44
 REGRESSOR_VERSION='labels'
 CALIB_TR=10 # number of calibration TRs excluded from the beginning of each run
-NPERM=1000
+NPERM=10000
+NBOOT=10000
 ALPHAS = 10.**np.arange(-2, 20, 1)
 VERBOSE=1
 

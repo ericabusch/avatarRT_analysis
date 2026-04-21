@@ -73,7 +73,7 @@ if __name__ == '__main__':
     cumulative_info = helper.load_info_file()
 
     if os.path.exists(f'{INTERMEDIATE_RESULTS_PATH}/runwise_neural_variance_control.csv'):
-        print('Results already exist. Loading and plotting.')
+        print('Results already exist. Loading.')
         res_overall = pd.read_csv(f'{INTERMEDIATE_RESULTS_PATH}/runwise_neural_variance_control.csv', index_col=0)
         sub_overall = pd.read_csv(f'{INTERMEDIATE_RESULTS_PATH}/runwise_neural_variance_run_change_control.csv', index_col=0)
     else:
@@ -146,9 +146,9 @@ if __name__ == '__main__':
                     continue
 
                 # one-sample (vs 0) stats
-                m, lo, hi, _ = helper.bootstrap_ci(v, n_boot=10000, verbose=0)
+                m, lo, hi, _ = helper.bootstrap_ci(v, n_boot=NBOOT, verbose=0)
                 _, p_vs_0, _ = helper.permutation_test(
-                    np.array([v, np.zeros(len(v))]), 10000, alternative='two-sided')
+                    np.array([v, np.zeros(len(v))]), NPERM, alternative='two-sided')
                 d = helper.cohens_d_paired(v, verbose=0)
 
                 stats_rows.append({
@@ -172,8 +172,8 @@ if __name__ == '__main__':
                     continue
 
                 _, p_pair, _ = helper.permutation_test(
-                    np.array([a, b]), 10000, alternative='two-sided')
-                m_diff, lo_diff, hi_diff, _ = helper.bootstrap_ci(a - b, n_boot=10000, verbose=0)
+                    np.array([a, b]), NPERM, alternative='two-sided')
+                m_diff, lo_diff, hi_diff, _ = helper.bootstrap_ci(a - b, n_boot=NBOOT, verbose=0)
                 d_pair = helper.cohens_d_paired(a - b, verbose=0)
 
                 stats_rows.append({

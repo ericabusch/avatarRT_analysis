@@ -19,11 +19,9 @@ import seaborn as sns
 from scipy.stats import spearmanr
 from config import *
 
-RESULTS_PUBLIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'results_public')
-PLOTS_DIR      = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results', 'plots')
-MAIN_RESULTS   = os.path.join(RESULTS_PUBLIC, 'main_results.csv')
+MAIN_RESULTS   = os.path.join(FINAL_RESULTS_PATH, 'main_results.csv')
 
-os.makedirs(PLOTS_DIR, exist_ok=True)
+os.makedirs(PLOTS_PATH, exist_ok=True)
 sns.set_context(context_params)
 
 SUBJECTS = [s for s in SUB_IDS if s not in ['avatarRT_sub_09', 'avatarRT_sub_20']]
@@ -31,7 +29,7 @@ SUBJECTS = [s for s in SUB_IDS if s not in ['avatarRT_sub_09', 'avatarRT_sub_20'
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
-def bootstrap_spearman_ci(x, y, n_bootstrap=1000, ci=95, random_state=4):
+def bootstrap_spearman_ci(x, y, n_bootstrap=NBOOT, ci=95, random_state=SEED):
     n = len(x)
     rng = np.random.default_rng(random_state)
     boot_corrs = np.empty(n_bootstrap)
@@ -102,8 +100,7 @@ def plot_mask_size(wide):
     pal = sns.color_palette('YlGnBu', n_colors=len(sub_vox))
 
     _, ax = plt.subplots(figsize=(7, 3))
-    sns.barplot(data=sub_vox, x='subject_id', y='n_voxels',
-                hue='subject_id', order=sub_vox['subject_id'].tolist(),
+    sns.barplot(data=sub_vox, x='subject_id', y='n_voxels', order=sub_vox['subject_id'].tolist(),
                 palette=pal, edgecolor='k', linewidth=1, ax=ax)
     if ax.get_legend() is not None:
         ax.get_legend().remove()
@@ -112,7 +109,7 @@ def plot_mask_size(wide):
            title='Voxels included in neurofeedback mask')
     sns.despine()
     plt.tight_layout()
-    out_fn = os.path.join(PLOTS_DIR, 'mask_size.pdf')
+    out_fn = os.path.join(PLOTS_PATH, 'mask_size.pdf')
     plt.savefig(out_fn, format='pdf', transparent=True)
     print(f'Saved plot: {out_fn}')
     plt.show()
@@ -136,7 +133,7 @@ def plot_mask_correlations(wide):
         for cond in conds:
             sub_df = wide[wide['session_type'] == cond].dropna(subset=['n_voxels', metric])
             rho, (ci_low, ci_high), p = bootstrap_spearman_ci(
-                sub_df['n_voxels'].values, sub_df[metric].values, n_bootstrap=1000)
+                sub_df['n_voxels'].values, sub_df[metric].values, n_bootstrap=NBOOT)
             print(f'  {cond}: rho={rho:.3f}, 95% CI=[{ci_low:.3f}, {ci_high:.3f}], p={p:.3f}')
             rhos.append(rho)
             lowers.append(ci_low)
@@ -156,7 +153,7 @@ def plot_mask_correlations(wide):
 
     sns.despine()
     fig.tight_layout()
-    out_fn = os.path.join(PLOTS_DIR, 'mask_size_learning.pdf')
+    out_fn = os.path.join(PLOTS_PATH, 'mask_size_learning.pdf')
     plt.savefig(out_fn, format='pdf', transparent=True)
     print(f'Saved plot: {out_fn}')
     plt.show()
@@ -172,14 +169,14 @@ def main():
     print(f'n_voxels range: {vox_summary["n_voxels"].min():.0f} – {vox_summary["n_voxels"].max():.0f}')
     print(vox_summary.to_string(index=False))
 
-    vox_fn = os.path.join(RESULTS_PUBLIC, 'mask_size_per_subject.csv')
+    vox_fn = os.path.join(INTERMEDIATE_RESULTS_PATH, 'mask_size_per_subject.csv')
     vox_summary.to_csv(vox_fn)
     print(f'Saved: {vox_fn}')
 
     plot_mask_size(wide)
     corr_df = plot_mask_correlations(wide)
 
-    corr_fn = os.path.join(RESULTS_PUBLIC, 'mask_size_correlations.csv')
+    corr_fn = os.path.join(INTERMEDIATE_RESULTS_PATH, 'mask_size_correlations.csv')
     corr_df.to_csv(corr_fn, index=False)
     print(f'Saved: {corr_fn}')
 
